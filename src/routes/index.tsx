@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { HeroSection } from "@/components/HeroSection";
 import { BabysitterCard } from "@/components/BabysitterCard";
+import { FilterBar } from "@/components/FilterBar";
+import { useState, useMemo } from "react";
 
 import sitter1 from "@/assets/sitter-1.jpg";
 import sitter2 from "@/assets/sitter-2.jpg";
@@ -27,9 +29,11 @@ const babysitters = [
     isVerified: true,
     kidsInArea: 23,
     experienceTags: ["Infants under 1", "Bedtime routines", "CPR certified"],
+    certifications: ["CPR Certified", "First Aid", "Newborn Care"],
     rebookedByFamilies: 7,
     rating: 4.9,
     hourlyRate: 22,
+    distanceMiles: 3,
   },
   {
     name: "Marcus",
@@ -37,9 +41,11 @@ const babysitters = [
     isVerified: true,
     kidsInArea: 15,
     experienceTags: ["Toddlers", "Outdoor play", "Homework help"],
+    certifications: ["CPR Certified", "First Aid"],
     rebookedByFamilies: 4,
     rating: 4.8,
     hourlyRate: 20,
+    distanceMiles: 7,
   },
   {
     name: "Diana",
@@ -47,9 +53,11 @@ const babysitters = [
     isVerified: true,
     kidsInArea: 31,
     experienceTags: ["3 infants under 1 year", "Special needs", "Meal prep"],
+    certifications: ["CPR Certified", "First Aid", "Special Needs", "Early Childhood Ed.", "Newborn Care"],
     rebookedByFamilies: 11,
     rating: 5.0,
     hourlyRate: 28,
+    distanceMiles: 2,
   },
   {
     name: "Amara",
@@ -57,9 +65,11 @@ const babysitters = [
     isVerified: true,
     kidsInArea: 8,
     experienceTags: ["Toddlers", "Bedtime routines", "First aid"],
+    certifications: ["First Aid"],
     rebookedByFamilies: 2,
     rating: 4.7,
     hourlyRate: 18,
+    distanceMiles: 12,
   },
   {
     name: "Mei",
@@ -67,9 +77,11 @@ const babysitters = [
     isVerified: true,
     kidsInArea: 19,
     experienceTags: ["Infants", "Twins experience", "Bilingual"],
+    certifications: ["CPR Certified", "Newborn Care"],
     rebookedByFamilies: 6,
     rating: 4.9,
     hourlyRate: 24,
+    distanceMiles: 5,
   },
   {
     name: "Jake",
@@ -77,13 +89,33 @@ const babysitters = [
     isVerified: false,
     kidsInArea: 5,
     experienceTags: ["School-age kids", "Sports activities"],
+    certifications: [],
     rebookedByFamilies: 0,
     rating: 4.5,
     hourlyRate: 16,
+    distanceMiles: 20,
   },
 ];
 
 function Index() {
+  const [filters, setFilters] = useState({
+    verifiedOnly: false,
+    certifications: [] as string[],
+    maxDistance: 50,
+  });
+
+  const filteredSitters = useMemo(() => {
+    return babysitters.filter((s) => {
+      if (filters.verifiedOnly && !s.isVerified) return false;
+      if (filters.certifications.length > 0) {
+        const hasCert = filters.certifications.every((c) => s.certifications.includes(c));
+        if (!hasCert) return false;
+      }
+      if (s.distanceMiles > filters.maxDistance) return false;
+      return true;
+    });
+  }, [filters]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -99,11 +131,28 @@ function Index() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {babysitters.map((sitter) => (
-            <BabysitterCard key={sitter.name} {...sitter} />
-          ))}
+        {/* Filters */}
+        <div className="mb-8">
+          <FilterBar filters={filters} onFiltersChange={setFilters} />
         </div>
+
+        {filteredSitters.length > 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSitters.map((sitter) => (
+              <BabysitterCard key={sitter.name} {...sitter} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border bg-card py-16 text-center">
+            <p className="text-lg font-medium text-muted-foreground">No sitters match your filters</p>
+            <button
+              onClick={() => setFilters({ verifiedOnly: false, certifications: [], maxDistance: 50 })}
+              className="mt-3 text-sm font-medium text-primary hover:underline"
+            >
+              Clear all filters
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );
