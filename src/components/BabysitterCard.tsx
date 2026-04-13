@@ -1,4 +1,5 @@
-import { ShieldCheck, Heart, MapPin, RefreshCw } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ShieldCheck, MapPin, RefreshCw } from "lucide-react";
 
 interface BabysitterCardProps {
   name: string;
@@ -6,9 +7,11 @@ interface BabysitterCardProps {
   isVerified: boolean;
   kidsInArea: number;
   experienceTags: string[];
+  certifications: string[];
   rebookedByFamilies: number;
   rating: number;
   hourlyRate: number;
+  distanceMiles: number;
 }
 
 export function BabysitterCard({
@@ -33,14 +36,12 @@ export function BabysitterCard({
           height={384}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        {/* Verified badge overlay */}
         {isVerified && (
           <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-verified px-3 py-1.5 text-xs font-semibold text-verified-foreground shadow-md">
             <ShieldCheck size={14} />
             ID Verified
           </div>
         )}
-        {/* Rate overlay */}
         <div className="absolute bottom-3 right-3 rounded-full bg-card/90 backdrop-blur-sm px-3 py-1.5 text-sm font-bold text-card-foreground shadow-sm">
           ${hourlyRate}/hr
         </div>
@@ -48,7 +49,6 @@ export function BabysitterCard({
 
       {/* Content */}
       <div className="p-5 space-y-3.5">
-        {/* Name + Rating */}
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-card-foreground font-display">{name}</h3>
           <div className="flex items-center gap-1 text-warmth">
@@ -57,13 +57,11 @@ export function BabysitterCard({
           </div>
         </div>
 
-        {/* Local social proof */}
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin size={14} className="text-primary" />
           <span>Has babysat <strong className="text-card-foreground">{kidsInArea} kids</strong> in your area</span>
         </div>
 
-        {/* Experience tags */}
         <div className="flex flex-wrap gap-1.5">
           {experienceTags.map((tag) => (
             <span
@@ -75,7 +73,6 @@ export function BabysitterCard({
           ))}
         </div>
 
-        {/* Rebooked indicator */}
         {rebookedByFamilies > 0 && (
           <div className="flex items-center gap-1.5 rounded-lg bg-rebook/10 px-3 py-2 text-sm">
             <RefreshCw size={14} className="text-rebook" />
@@ -85,10 +82,13 @@ export function BabysitterCard({
           </div>
         )}
 
-        {/* CTA */}
-        <button className="mt-1 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+        <Link
+          to="/sitters/$sitterName"
+          params={{ sitterName: name.toLowerCase() }}
+          className="mt-1 block w-full rounded-xl bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
           View Profile
-        </button>
+        </Link>
       </div>
     </div>
   );
