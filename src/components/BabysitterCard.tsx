@@ -51,16 +51,27 @@ export function BabysitterCard({
       <div className="p-5 space-y-3.5">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-card-foreground font-display">{name}</h3>
-          <div className="flex items-center gap-1 text-warmth">
-            <span className="text-sm">★</span>
-            <span className="text-sm font-semibold text-card-foreground">{rating.toFixed(1)}</span>
-          </div>
+          {rating > 0 ? (
+            <div className="flex items-center gap-1 text-warmth">
+              <span className="text-sm">★</span>
+              <span className="text-sm font-semibold text-card-foreground">{rating.toFixed(1)}</span>
+            </div>
+          ) : (
+            <span className="text-xs font-medium text-muted-foreground">No reviews</span>
+          )}
         </div>
 
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin size={14} className="text-primary" />
-          <span>Has babysat <strong className="text-card-foreground">{kidsInArea} kids</strong> in your area</span>
-        </div>
+        {kidsInArea > 0 ? (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MapPin size={14} className="text-primary" />
+            <span>Has babysat <strong className="text-card-foreground">{kidsInArea} kids</strong> in your area</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MapPin size={14} className="text-primary" />
+            <span>New to your area</span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-1.5">
           {experienceTags.map((tag) => (
