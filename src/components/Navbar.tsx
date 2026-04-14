@@ -19,6 +19,9 @@ export function Navbar() {
           <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Find Sitters
           </Link>
+          <Link to="/bookings" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            My Bookings
+          </Link>
           <button className="rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
             Sign Up
           </button>
@@ -35,6 +38,7 @@ export function Navbar() {
       {menuOpen && (
         <div className="border-t border-border bg-card px-6 py-4 sm:hidden space-y-3">
           <Link to="/" className="block text-sm font-medium text-muted-foreground">Find Sitters</Link>
+          <Link to="/bookings" className="block text-sm font-medium text-muted-foreground">My Bookings</Link>
           <button className="w-full rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">
             Sign Up
           </button>
