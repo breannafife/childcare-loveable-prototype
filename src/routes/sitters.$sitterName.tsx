@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ShieldCheck, MapPin, RefreshCw, Star, Clock, Calendar, Award, Heart } from "lucide-react";
+import { ArrowLeft, ShieldCheck, MapPin, RefreshCw, Star, Clock, Calendar, Award, Heart, Video } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { ScheduleCallSheet } from "@/components/ScheduleCallSheet";
+import { useState } from "react";
 
 import sitter1 from "@/assets/sitter-1.jpg";
 import sitter2 from "@/assets/sitter-2.jpg";
@@ -161,6 +163,7 @@ const babysittersData: Record<string, {
 function SitterProfile() {
   const { sitterName } = Route.useParams();
   const sitter = babysittersData[sitterName.toLowerCase()];
+  const [callSheetOpen, setCallSheetOpen] = useState(false);
 
   if (!sitter) {
     return (
@@ -239,9 +242,18 @@ function SitterProfile() {
                 </div>
               </div>
 
-              <button className="mt-6 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto sm:px-10">
-                Book {sitter.name}
-              </button>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto sm:px-10">
+                  Book {sitter.name}
+                </button>
+                <button
+                  onClick={() => setCallSheetOpen(true)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:w-auto sm:px-8"
+                >
+                  <Video size={16} />
+                  Schedule a call
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -346,6 +358,13 @@ function SitterProfile() {
             ))}
           </div>
         </div>
+
+        <ScheduleCallSheet
+          open={callSheetOpen}
+          onClose={() => setCallSheetOpen(false)}
+          sitterName={sitter.name}
+          sitterPhoto={sitter.photo}
+        />
       </div>
     </div>
   );
