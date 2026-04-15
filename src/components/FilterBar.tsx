@@ -5,7 +5,7 @@ interface FilterBarProps {
   filters: {
     verifiedOnly: boolean;
     certifications: string[];
-    maxDistance: number;
+    postalCode: string;
   };
   onFiltersChange: (filters: FilterBarProps["filters"]) => void;
 }
@@ -16,13 +16,6 @@ const allCertifications = [
   "Early Childhood Ed.",
   "Special Needs",
   "Newborn Care",
-];
-
-const distanceOptions = [
-  { value: 5, label: "5 miles" },
-  { value: 10, label: "10 miles" },
-  { value: 25, label: "25 miles" },
-  { value: 50, label: "50+ miles" },
 ];
 
 export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
@@ -39,14 +32,10 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
     onFiltersChange({ ...filters, certifications: next });
   };
 
-  const setDistance = (d: number) => {
-    onFiltersChange({ ...filters, maxDistance: d });
-  };
-
   const activeCount =
     (filters.verifiedOnly ? 1 : 0) +
     filters.certifications.length +
-    (filters.maxDistance < 50 ? 1 : 0);
+    (filters.postalCode.length > 0 ? 1 : 0);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -118,22 +107,21 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
         )}
       </div>
 
-      {/* Distance */}
-      <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2 py-1">
-        <MapPin size={15} className="ml-2 text-primary" />
-        {distanceOptions.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setDistance(opt.value)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-              filters.maxDistance === opt.value
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      {/* Postal code input */}
+      <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5">
+        <MapPin size={15} className="text-primary" />
+        <input
+          type="text"
+          value={filters.postalCode}
+          onChange={(e) => {
+            const val = e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "");
+            if (val.length <= 7) {
+              onFiltersChange({ ...filters, postalCode: val });
+            }
+          }}
+          placeholder="e.g. M5V 1A1"
+          className="w-28 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+        />
       </div>
 
       {/* Active filter count */}
@@ -143,7 +131,7 @@ export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
             onFiltersChange({
               verifiedOnly: false,
               certifications: [],
-              maxDistance: 50,
+              postalCode: "",
             })
           }
           className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
