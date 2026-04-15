@@ -95,13 +95,34 @@ export function BabysitterCard({
           </div>
         )}
 
-        <Link
-          to="/sitters/$sitterName"
-          params={{ sitterName: name.toLowerCase() }}
-          className="mt-1 block w-full rounded-xl bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          View Profile
-        </Link>
+        {(() => {
+          const [callOpen, setCallOpen] = useState(false);
+          return (
+            <>
+              <div className="flex gap-2 mt-1">
+                <Link
+                  to="/sitters/$sitterName"
+                  params={{ sitterName: name.toLowerCase() }}
+                  className="flex-1 rounded-xl bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  View Profile
+                </Link>
+                <button
+                  onClick={() => setCallOpen(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
+                >
+                  <Video size={14} />
+                  Intro Call
+                </button>
+              </div>
+              <ScheduleCallSheet
+                sitterName={name}
+                open={callOpen}
+                onOpenChange={setCallOpen}
+              />
+            </>
+          );
+        })()}
       </div>
     </div>
   );
