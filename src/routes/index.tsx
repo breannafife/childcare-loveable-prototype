@@ -34,6 +34,7 @@ const babysitters = [
     rating: 4.9,
     hourlyRate: 22,
     distanceMiles: 3,
+    postalCode: "M5V 1A1",
   },
   {
     name: "Marcus",
@@ -46,6 +47,7 @@ const babysitters = [
     rating: 4.8,
     hourlyRate: 20,
     distanceMiles: 7,
+    postalCode: "M5V 2B3",
   },
   {
     name: "Diana",
@@ -58,6 +60,7 @@ const babysitters = [
     rating: 0,
     hourlyRate: 28,
     distanceMiles: 2,
+    postalCode: "M4W 1E6",
   },
   {
     name: "Amara",
@@ -70,6 +73,7 @@ const babysitters = [
     rating: 0,
     hourlyRate: 18,
     distanceMiles: 12,
+    postalCode: "K1A 0B1",
   },
   {
     name: "Mei",
@@ -82,6 +86,7 @@ const babysitters = [
     rating: 4.9,
     hourlyRate: 24,
     distanceMiles: 5,
+    postalCode: "M5V 3K9",
   },
   {
     name: "Jake",
@@ -94,6 +99,7 @@ const babysitters = [
     rating: 0,
     hourlyRate: 16,
     distanceMiles: 20,
+    postalCode: "V6B 1H7",
   },
 ];
 
@@ -101,7 +107,7 @@ function Index() {
   const [filters, setFilters] = useState({
     verifiedOnly: false,
     certifications: [] as string[],
-    maxDistance: 50,
+    postalCode: "",
   });
 
   const filteredSitters = useMemo(() => {
@@ -111,7 +117,12 @@ function Index() {
         const hasCert = filters.certifications.every((c) => s.certifications.includes(c));
         if (!hasCert) return false;
       }
-      if (s.distanceMiles > filters.maxDistance) return false;
+      // Filter by FSA (first 3 characters of postal code)
+      if (filters.postalCode.length >= 3) {
+        const inputFSA = filters.postalCode.replace(/\s/g, "").slice(0, 3).toUpperCase();
+        const sitterFSA = s.postalCode.replace(/\s/g, "").slice(0, 3).toUpperCase();
+        if (sitterFSA !== inputFSA) return false;
+      }
       return true;
     });
   }, [filters]);
@@ -146,7 +157,7 @@ function Index() {
           <div className="rounded-2xl border border-border bg-card py-16 text-center">
             <p className="text-lg font-medium text-muted-foreground">No sitters match your filters</p>
             <button
-              onClick={() => setFilters({ verifiedOnly: false, certifications: [], maxDistance: 50 })}
+              onClick={() => setFilters({ verifiedOnly: false, certifications: [], postalCode: "" })}
               className="mt-3 text-sm font-medium text-primary hover:underline"
             >
               Clear all filters
