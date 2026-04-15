@@ -117,8 +117,9 @@ export function BabysitterCard({
               </div>
               <ScheduleCallSheet
                 sitterName={name}
+                sitterPhoto={photo}
                 open={callOpen}
-                onOpenChange={setCallOpen}
+                onClose={() => setCallOpen(false)}
               />
             </>
           );
