@@ -9,7 +9,7 @@ export function HeroSection() {
 
       <div className="relative mx-auto max-w-4xl px-6 text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-trust/10 px-4 py-1.5 text-sm font-medium text-trust">
-          <span>🛡️</span> Every sitter is background-checked
+          <span>🛡️</span> Every sitter is ID verified
         </div>
 
         <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl md:text-6xl">
