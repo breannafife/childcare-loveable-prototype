@@ -1,24 +1,31 @@
 import { useState, useMemo } from "react";
-import { Video, Clock, Calendar, CheckCircle, ExternalLink, X } from "lucide-react";
-import { generateWeekSlots, scheduleCall, type TimeSlot } from "@/lib/bookings-store";
+import { useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Video, Clock, Calendar, CheckCircle, ExternalLink, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { generateWeekSlots, scheduleCall, fetchMyCalls, type TimeSlot } from "@/lib/bookings-store";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ScheduleCallSheetProps {
   open: boolean;
   onClose: () => void;
+  sitterId: string;
   sitterName: string;
   sitterPhoto: string;
 }
 
 type Step = "select" | "confirmed";
 
-export function ScheduleCallSheet({ open, onClose, sitterName, sitterPhoto }: ScheduleCallSheetProps) {
+export function ScheduleCallSheet({ open, onClose, sitterId, sitterName, sitterPhoto }: ScheduleCallSheetProps) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [step, setStep] = useState<Step>("select");
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [confirmedMeetLink, setConfirmedMeetLink] = useState("");
   const [confirmedLabel, setConfirmedLabel] = useState("");
 
   const slots = useMemo(() => generateWeekSlots(), []);
-
   const slotsByDay = useMemo(() => {
     const grouped: Record<string, TimeSlot[]> = {};
     for (const s of slots) {
@@ -28,12 +35,28 @@ export function ScheduleCallSheet({ open, onClose, sitterName, sitterPhoto }: Sc
     return grouped;
   }, [slots]);
 
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!selectedSlot) throw new Error("Pick a time first.");
+      return scheduleCall({ sitterId, sitterName, sitterPhoto, slot: selectedSlot });
+    },
+    onSuccess: (call) => {
+      setConfirmedMeetLink(call.meetLink);
+      setConfirmedLabel(call.label);
+      setStep("confirmed");
+      qc.invalidateQueries({ queryKey: ["my-calls"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not schedule the call."),
+  });
+
   function handleConfirm() {
-    if (!selectedSlot) return;
-    const call = scheduleCall(sitterName, sitterPhoto, selectedSlot);
-    setConfirmedMeetLink(call.meetLink);
-    setConfirmedLabel(call.label);
-    setStep("confirmed");
+    if (!user) {
+      onClose();
+      navigate({ to: "/auth", search: { redirect: window.location.pathname } });
+      toast.message("Sign in to book an intro call.");
+      return;
+    }
+    mutation.mutate();
   }
 
   function handleClose() {
@@ -46,18 +69,14 @@ export function ScheduleCallSheet({ open, onClose, sitterName, sitterPhoto }: Sc
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm" onClick={handleClose} />
 
-      {/* Bottom sheet */}
       <div className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-lg animate-in slide-in-from-bottom duration-300">
         <div className="rounded-t-3xl border border-border bg-card shadow-2xl">
-          {/* Handle */}
           <div className="flex justify-center pt-3 pb-1">
             <div className="h-1.5 w-10 rounded-full bg-muted" />
           </div>
 
-          {/* Header */}
           <div className="flex items-center justify-between px-6 pb-4">
             <div className="flex items-center gap-2">
               <Video size={20} className="text-primary" />
@@ -74,6 +93,7 @@ export function ScheduleCallSheet({ open, onClose, sitterName, sitterPhoto }: Sc
             <div className="max-h-[60vh] overflow-y-auto px-6 pb-6">
               <p className="mb-4 text-sm text-muted-foreground">
                 Pick a time for a 15-minute video pre-screening call via Google Meet.
+                {!user && " You'll be asked to sign in to confirm."}
               </p>
 
               {Object.entries(slotsByDay).map(([day, daySlots]) => (
@@ -105,10 +125,11 @@ export function ScheduleCallSheet({ open, onClose, sitterName, sitterPhoto }: Sc
 
               <button
                 onClick={handleConfirm}
-                disabled={!selectedSlot}
-                className="mt-2 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!selectedSlot || mutation.isPending}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Confirm call
+                {mutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                {user ? "Confirm call" : "Sign in to confirm"}
               </button>
             </div>
           ) : (

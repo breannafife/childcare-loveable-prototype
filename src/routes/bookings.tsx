@@ -1,8 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
-import { Video, Calendar, Clock, ExternalLink, ArrowLeft } from "lucide-react";
-import { getScheduledCalls, subscribeToBookings, type ScheduledCall } from "@/lib/bookings-store";
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { Video, Calendar, Clock, ExternalLink, ArrowLeft, Loader2 } from "lucide-react";
+import { fetchMyCalls, type ScheduledCall } from "@/lib/bookings-store";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/bookings")({
   component: BookingsPage,
@@ -21,7 +23,20 @@ const statusColors: Record<string, string> = {
 };
 
 function BookingsPage() {
-  const calls = useSyncExternalStore(subscribeToBookings, getScheduledCalls, getScheduledCalls);
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate({ to: "/auth", search: { redirect: "/bookings" }, replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
+  const { data: calls = [], isLoading } = useQuery({
+    queryKey: ["my-calls"],
+    queryFn: fetchMyCalls,
+    enabled: !!user,
+  });
 
   const upcomingCalls = calls.filter((c) => c.status !== "Completed");
   const pastCalls = calls.filter((c) => c.status === "Completed");
@@ -39,14 +54,18 @@ function BookingsPage() {
         <h1 className="font-display text-3xl font-bold text-foreground">My Bookings</h1>
         <p className="mt-1 text-muted-foreground">Your scheduled calls and confirmed bookings</p>
 
-        {/* Upcoming Calls */}
         <section className="mt-10">
           <h2 className="font-display text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
             <Video size={20} className="text-primary" />
             Upcoming Calls
           </h2>
 
-          {upcomingCalls.length === 0 ? (
+          {authLoading || isLoading ? (
+            <div className="flex items-center justify-center rounded-2xl border border-border bg-card py-12 text-muted-foreground">
+              <Loader2 size={18} className="mr-2 animate-spin" />
+              Loading…
+            </div>
+          ) : upcomingCalls.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card py-12 text-center">
               <Video size={32} className="mx-auto mb-3 text-muted-foreground/40" />
               <p className="text-muted-foreground">No upcoming calls yet</p>
@@ -63,7 +82,6 @@ function BookingsPage() {
           )}
         </section>
 
-        {/* Confirmed Bookings placeholder */}
         <section className="mt-10">
           <h2 className="font-display text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
             <Calendar size={20} className="text-primary" />
@@ -75,7 +93,6 @@ function BookingsPage() {
           </div>
         </section>
 
-        {/* Past calls */}
         {pastCalls.length > 0 && (
           <section className="mt-10">
             <h2 className="font-display text-xl font-semibold text-foreground mb-4">Past Calls</h2>
