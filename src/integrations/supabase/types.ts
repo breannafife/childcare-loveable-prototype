@@ -148,6 +148,7 @@ export type Database = {
           rebooked_by_families: number
           slug: string
           updated_at: string
+          user_id: string | null
           years_experience: number
         }
         Insert: {
@@ -168,6 +169,7 @@ export type Database = {
           rebooked_by_families?: number
           slug: string
           updated_at?: string
+          user_id?: string | null
           years_experience?: number
         }
         Update: {
@@ -188,6 +190,7 @@ export type Database = {
           rebooked_by_families?: number
           slug?: string
           updated_at?: string
+          user_id?: string | null
           years_experience?: number
         }
         Relationships: []
