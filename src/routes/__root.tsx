@@ -31,7 +31,7 @@ function NotFoundComponent() {
   );
 }
 
-export const Route = createRootRouteWithContext<RouterContext>()({
+export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -74,16 +74,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const context = Route.useRouteContext();
-  const queryClient = context?.queryClient;
-  if (!queryClient) {
-    return (
-      <AuthProvider>
-        <Outlet />
-        <Toaster position="top-center" richColors />
-      </AuthProvider>
-    );
-  }
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
