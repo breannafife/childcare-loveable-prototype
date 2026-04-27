@@ -151,20 +151,21 @@ supabase/
 
 | Component | File | Purpose | Used by |
 |---|---|---|---|
-| `Navbar` | `src/components/Navbar.tsx` | Fixed top nav. Logo links home, links to `/` and `/bookings`, decorative "Sign Up" button (no auth wired). Mobile hamburger menu. | All three routes |
+| `Navbar` | `src/components/Navbar.tsx` | Fixed top nav. Logo links home, links to `/` and `/bookings`. Shows **Sign In** when signed out and a **Sign Out** control when signed in (uses `useAuth()`). Mobile hamburger menu. | All routes |
 | `HeroSection` | `src/components/HeroSection.tsx` | Landing hero. Headline, "Every sitter is ID verified" trust banner, and a **decorative** zip-code search bar (the input is not wired to filtering — the real filter lives in `FilterBar`). | `/` only |
 | `FilterBar` | `src/components/FilterBar.tsx` | Live filter controls. Verified-only toggle, certifications dropdown (multi-select), Canadian postal-code text input (sanitized to `[A-Z0-9 ]`, max 7 chars, matches by FSA = first 3 chars), and a "Clear all" button when any filter is active. Drives the `filters` state in `index.tsx`. | `/` only |
-| `BabysitterCard` | `src/components/BabysitterCard.tsx` | Sitter card in the browse grid. Photo, ID-verified badge, hourly rate, name, rating (or `"No reviews"` when `rating === 0`), "Has babysat N kids in your area" (or `"New to your area"` when `kidsInArea === 0`), experience tags, "Rebooked by N families" callout, and two CTAs: **View Profile** (link to `/sitters/$sitterName`) and **Intro Call** (opens `ScheduleCallSheet`). Owns its own `callOpen` state via an inline IIFE — see §4 for the cleanup note. | `/` |
-| `ScheduleCallSheet` | `src/components/ScheduleCallSheet.tsx` | Modal bottom sheet for scheduling a 15-minute Google Meet pre-screening call. Two steps: `select` (week of slots grouped by day, then by Morning/Afternoon/Evening) and `confirmed` (success state with date, time, and Meet link). Calls `scheduleCall()` from the bookings store on confirm. Resets state on close. | `BabysitterCard`, `/sitters/$sitterName` |
+| `BabysitterCard` | `src/components/BabysitterCard.tsx` | Sitter card in the browse grid. Photo, ID-verified badge, hourly rate, name, rating (or `"No reviews"` when `rating === 0`), "Has babysat N kids in your area" (or `"New to your area"` when `kidsInArea === 0`), experience tags, "Rebooked by N families" callout, and two CTAs: **View Profile** (link to `/sitters/$sitterName`) and **Intro Call** (opens `ScheduleCallSheet` if signed in, otherwise routes to `/auth`). | `/` |
+| `ScheduleCallSheet` | `src/components/ScheduleCallSheet.tsx` | Modal bottom sheet for scheduling a 15-minute Google Meet pre-screening call. Two steps: `select` (week of slots grouped by day, then by Morning/Afternoon/Evening) and `confirmed` (success state with date, time, and Meet link). Calls `scheduleCall()` (Supabase INSERT) on confirm and invalidates the bookings query. Resets state on close. | `BabysitterCard`, `/sitters/$sitterName` |
 
 ### Route components (also act as page components)
 
 | Route | File | Purpose |
 |---|---|---|
-| `__root` | `src/routes/__root.tsx` | Root layout. Defines the HTML shell (`RootShell`), head meta + Google Fonts (DM Serif Display + DM Sans), global 404 page, and renders `<Outlet />`. |
-| `Index` | `src/routes/index.tsx` | `/` — Browse page. Owns the `filters` state, defines the `babysitters` array, derives `filteredSitters` via `useMemo`, and renders `Navbar` + `HeroSection` + `FilterBar` + the card grid (or empty state). |
-| `SitterProfile` | `src/routes/sitters.$sitterName.tsx` | `/sitters/:sitterName` — Profile page. Looks up the sitter in `babysittersData` by lowercase name, renders the hero card with **Book** + **Schedule a call** CTAs, plus Experience / Certifications / Availability / At-a-Glance / Reviews sections. Renders its own `ScheduleCallSheet`. |
-| `BookingsPage` | `src/routes/bookings.tsx` | `/bookings` — Subscribes to the bookings store via `useSyncExternalStore`. Splits calls into "Upcoming" (status ≠ `Completed`) and "Past" (status = `Completed`). Renders a placeholder "Confirmed Bookings" section that is currently always empty (no booking primitive exists yet — see §4). Defines a local `CallCard` sub-component for each call. |
+| `__root` | `src/routes/__root.tsx` | Root layout. Defines the HTML shell (`RootShell`), head meta + Google Fonts (DM Serif Display + DM Sans), wraps the app in `QueryClientProvider` + `AuthProvider`, global 404 page, and renders `<Outlet />`. |
+| `Index` | `src/routes/index.tsx` | `/` — Browse page. Owns the `filters` state. Fetches sitters from Supabase via `useQuery(['sitters'])` (see `src/lib/sitters.ts`), derives `filteredSitters` via `useMemo`, and renders `Navbar` + `HeroSection` + `FilterBar` + the card grid (or empty state). |
+| `SitterProfile` | `src/routes/sitters.$sitterName.tsx` | `/sitters/:sitterName` — Profile page. Fetches the sitter + reviews via `useQuery(['sitter', slug])`, renders the hero card with **Book** + **Schedule a call** CTAs, plus Experience / Certifications / Availability / At-a-Glance / Reviews sections. Renders its own `ScheduleCallSheet`. |
+| `BookingsPage` | `src/routes/bookings.tsx` | `/bookings` — Requires auth (redirects to `/auth` if signed out). Fetches the signed-in user's calls via `useQuery(['scheduled-calls', userId])`. Splits calls into "Upcoming" (status ≠ `Completed`) and "Past" (status = `Completed`). Renders a placeholder "Confirmed Bookings" section that is currently always empty (no booking primitive exists yet — see §6). |
+| `AuthPage` | `src/routes/auth.tsx` | `/auth` — Email/password sign-in and sign-up tabs plus a Google OAuth button (managed via `lovable.auth.signInWithOAuth`). Redirects to `/` on success. |
 
 ### `src/components/ui/` (shadcn primitives)
 
@@ -174,74 +175,126 @@ These are vendored shadcn/ui components. The prototype only actively uses a smal
 
 ## 4. Data Model
 
-There is no database. All "data" is plain TypeScript values colocated with the components that use them. Three shapes matter:
+All persistent data lives in Postgres (Lovable Cloud). Schema is defined in `supabase/migrations/`. RLS is enabled on every table.
 
-### 4.1 Sitter (browse-card variant) — `src/routes/index.tsx`
+### 4.1 `sitters` (publicly readable)
 
-```ts
-{
-  name: string;              // Used as the display name AND the URL slug (lowercased)
-  photo: string;             // Imported asset URL
-  isVerified: boolean;       // Drives the "ID Verified" badge
-  kidsInArea: number;        // Local-area count. 0 → "New to your area"
-  experienceTags: string[];  // Pills under the name
-  certifications: string[];  // Used by FilterBar (must include all selected certs)
-  rebookedByFamilies: number;// 0 → callout hidden
-  rating: number;            // 0 → renders "No reviews"
-  hourlyRate: number;        // USD, displayed as $N/hr
-  distanceMiles: number;     // Imported but currently unused on the card
-  postalCode: string;        // Canadian, e.g. "M5V 1A1". Filter matches first 3 chars (FSA)
-}
+```sql
+sitters (
+  id uuid pk,
+  slug text,                  -- lowercased name; profile route looks up by this
+  name text,
+  photo_url text,             -- e.g. "/sitter-1.jpg" (served from /public)
+  bio text,
+  hourly_rate int,            -- USD/hr
+  postal_code text,           -- Canadian, e.g. "M5V 1A1". Filter matches first 3 chars (FSA)
+  distance_miles int,
+  years_experience int,
+  is_verified bool,           -- drives the "ID Verified" badge
+  kids_in_area int,           -- 0 → "New to your area"
+  rebooked_by_families int,   -- 0 → callout hidden
+  rating numeric,             -- 0 → renders "No reviews"
+  availability text[],        -- ["Mon", "Tue", ...]
+  experience_tags text[],
+  certifications text[],
+  created_at timestamptz,
+  updated_at timestamptz
+)
 ```
 
-### 4.2 Sitter (profile-detail variant) — `src/routes/sitters.$sitterName.tsx`
+**RLS:** anyone (signed in or out) can SELECT. No INSERT/UPDATE/DELETE from the client — sitter management is admin-only and done via SQL migrations.
 
-Superset of the above, **without** `postalCode` and **with**:
+### 4.2 `reviews` (publicly readable)
 
-```ts
-{
-  bio: string;
-  yearsExperience: number;
-  availability: string[];                                 // ["Mon", "Tue", ...]
-  reviews: { family: string; text: string; rating: number }[];
-}
+```sql
+reviews (
+  id uuid pk,
+  sitter_id uuid,             -- references sitters.id (logical, not enforced)
+  family_name text,
+  text text,
+  rating numeric,
+  created_at timestamptz
+)
 ```
 
-⚠️ **The two datasets are not synced.** Same sitter names, different field values (notably `kidsInArea`, `rating`, `rebookedByFamilies`). They were created independently. See "Known Tech Debt" below.
+**RLS:** anyone can SELECT. No client-side writes (review-prompting flow not built — see PRD §8).
 
-### 4.3 Scheduled call — `src/lib/bookings-store.ts`
+### 4.3 `scheduled_calls` (per-user, RLS-scoped)
+
+```sql
+scheduled_calls (
+  id uuid pk,
+  user_id uuid,               -- = auth.uid() of the booking parent
+  sitter_id uuid,
+  sitter_name text,
+  sitter_photo text,
+  date_label text,            -- e.g. "Mon Apr 28"
+  time_label text,            -- e.g. "10:30 AM"
+  slot_label text,            -- "${date} · ${time}"
+  meet_link text,             -- placeholder: "https://meet.google.com/abc-defg-hij"
+  status text,                -- "Requested" (default) | "Confirmed" | "Completed" — never transitions today
+  created_at timestamptz,
+  updated_at timestamptz
+)
+```
+
+**RLS:** users can SELECT/INSERT/UPDATE/DELETE only rows where `user_id = auth.uid()`. Signed-out clients see zero rows.
+
+### 4.4 `profiles` (per-user, auto-created)
+
+```sql
+profiles (
+  id uuid pk,
+  user_id uuid unique,        -- references auth.users
+  display_name text,          -- from signup metadata, OAuth full_name, or email local-part
+  avatar_url text,            -- from OAuth provider when available
+  created_at timestamptz,
+  updated_at timestamptz
+)
+```
+
+A `handle_new_user()` trigger on `auth.users` inserts a profile row on signup. **RLS:** users can SELECT/INSERT/UPDATE only their own profile.
+
+### 4.5 Client-side TimeSlot (still mocked) — `src/lib/bookings-store.ts`
 
 ```ts
-type CallStatus = "Requested" | "Confirmed" | "Completed";
-
-interface ScheduledCall {
-  id: string;            // `call-${Date.now()}`
-  sitterName: string;
-  sitterPhoto: string;
-  date: string;          // Display label, e.g. "Mon Apr 28"
-  time: string;          // Display label, e.g. "10:30 AM"
-  label: string;         // `${date} · ${time}`
-  meetLink: string;      // Static placeholder: "https://meet.google.com/abc-defg-hij"
-  status: CallStatus;    // Always created as "Requested"; never transitions today
-}
-
 interface TimeSlot {
   id: string;
-  date: string;
-  time: string;
-  label: string;
+  date: string;                              // "Mon Apr 28"
+  time: string;                              // "10:30 AM"
+  label: string;                             // `${date} · ${time}`
   block: "Morning" | "Afternoon" | "Evening";
 }
 ```
 
-The store is a tiny pub/sub:
+`generateWeekSlots()` is a pure function returning a deterministic 6-day window (today+1 … today+6), 6 slots/day. Same slots for every sitter. `scheduleCall(sitterId, name, photo, slot)` performs a Supabase INSERT into `scheduled_calls` and returns the new row.
 
-- `generateWeekSlots()` — deterministic 6-day window (today+1 … today+6), 6 slots/day (2 morning, 2 afternoon, 2 evening). Pure, called from `ScheduleCallSheet`.
-- `scheduleCall(name, photo, slot)` — appends a `ScheduledCall`, notifies listeners, returns the new call.
-- `getScheduledCalls()` — snapshot getter (used as `getSnapshot` for `useSyncExternalStore`).
-- `subscribeToBookings(listener)` — register/unregister listener (the `subscribe` for `useSyncExternalStore`).
+---
 
-State lives in **module-level `let` bindings**. Refreshing the page wipes everything. There is no `Confirmed` or `Completed` transition path today.
+## 5. Mocked vs. Real
+
+| Area | Status | Where it lives | Notes |
+|---|---|---|---|
+| Sitter list & profiles | **Real** | `sitters` table | Single source of truth; no more drift between browse and profile |
+| Sitter photos | **Static** | `public/sitter-*.jpg` | Referenced by `sitters.photo_url` |
+| Postal codes | **Real (seeded)** | `sitters.postal_code` | Canadian FSA-based filter |
+| Reviews | **Real** | `reviews` table | Joined to sitter via `sitter_id`; "No reviews" when count is 0 |
+| Kids-watched counts | **Seeded mock** | `sitters.kids_in_area` | 0 for Amara/Jake to exercise zero-trust path |
+| ID verification badge | **Seeded mock** | `sitters.is_verified` | No real verification pipeline |
+| Availability slots | **Mocked**, generated client-side | `bookings-store.ts → generateWeekSlots()` | Same slots for every sitter |
+| Scheduled calls | **Real** | `scheduled_calls` table | Persisted, RLS-scoped to the signed-in user |
+| Authentication | **Real** | `src/hooks/use-auth.tsx`, `src/routes/auth.tsx` | Email/password + Google OAuth, auto-confirm enabled |
+| User profiles | **Real** | `profiles` table + DB trigger | Auto-created on signup |
+| Google Meet link | **Mocked** | Static string in `scheduleCall()` | |
+| Hero zip-code search | **Decorative** | `HeroSection.tsx` | Input is not wired; real filter is in `FilterBar` |
+| Profile "Book {name}" CTA | **Decorative** | `sitters.$sitterName.tsx` | No booking primitive exists yet |
+| Bookings page "Confirmed Bookings" section | **Placeholder** | `bookings.tsx` | Always empty; no data source |
+| Routing, head meta, error/404 boundaries | **Real** | `__root.tsx`, `router.tsx`, per-route configs | Production-quality TanStack patterns |
+| Design system (tokens, typography) | **Real** | `src/styles.css` | OKLCH semantic tokens, ready to extend |
+| Payments, messaging, notifications | **Not built** | — | Out of scope for the experiment |
+| Provider-side workflows | **Not built** | — | Parent-side experiment first |
+| Calendar integration | **Not built** | — | No real Google/Apple calendar write |
+| Analytics / instrumentation | **Not built** | — | See PRD §7 for the proposed event spec |
 
 ---
 
