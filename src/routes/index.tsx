@@ -54,9 +54,12 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <HeroSection />
+      <HeroSection
+        postalCode={filters.postalCode}
+        onPostalCodeChange={(value) => setFilters((f) => ({ ...f, postalCode: value }))}
+      />
 
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section id="sitters-grid" className="mx-auto max-w-6xl px-6 py-16">
         <div className="mb-10 text-center">
           <h2 className="font-display text-3xl font-bold text-foreground">
             Top sitters near you
@@ -67,7 +70,7 @@ function Index() {
         </div>
 
         <div className="mb-8">
-          <FilterBar filters={filters} onFiltersChange={setFilters} />
+          <FilterBar filters={filters} onFiltersChange={setFilters} availableCertifications={certifications} />
         </div>
 
         {isLoading ? (
