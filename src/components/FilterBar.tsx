@@ -69,7 +69,9 @@ export function FilterBar({ filters, onFiltersChange, availableCertifications }:
           <>
             <div className="fixed inset-0 z-30" onClick={() => setCertDropdownOpen(false)} />
             <div className="absolute top-full left-0 z-40 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-lg">
-              {allCertifications.map((cert) => (
+              {availableCertifications.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">No certifications available</p>
+              ) : availableCertifications.map((cert) => (
                 <button
                   key={cert}
                   onClick={() => toggleCert(cert)}
