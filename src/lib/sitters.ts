@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SitterRow {
   id: string;
+  user_id: string | null;
   slug: string;
   name: string;
   photo_url: string;
@@ -60,4 +61,14 @@ export async function fetchSitterBySlug(slug: string): Promise<{ sitter: SitterR
   if (rErr) throw rErr;
 
   return { sitter: sitter as SitterRow, reviews: (reviews ?? []) as ReviewRow[] };
+}
+
+export async function fetchMySitter(userId: string): Promise<SitterRow | null> {
+  const { data, error } = await supabase
+    .from("sitters")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as SitterRow | null) ?? null;
 }

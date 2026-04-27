@@ -9,14 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitterRouteImport } from './routes/sitter'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SitterIndexRouteImport } from './routes/sitter.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SittersSitterNameRouteImport } from './routes/sitters.$sitterName'
+import { Route as SitterRequestsRouteImport } from './routes/sitter.requests'
 import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 
+const SitterRoute = SitterRouteImport.update({
+  id: '/sitter',
+  path: '/sitter',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookingsRoute = BookingsRouteImport.update({
   id: '/bookings',
   path: '/bookings',
@@ -37,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitterIndexRoute = SitterIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SitterRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -46,6 +59,11 @@ const SittersSitterNameRoute = SittersSitterNameRouteImport.update({
   id: '/sitters/$sitterName',
   path: '/sitters/$sitterName',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SitterRequestsRoute = SitterRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => SitterRoute,
 } as any)
 const AdminBookingsRoute = AdminBookingsRouteImport.update({
   id: '/bookings',
@@ -58,17 +76,22 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/sitter': typeof SitterRouteWithChildren
   '/admin/bookings': typeof AdminBookingsRoute
+  '/sitter/requests': typeof SitterRequestsRoute
   '/sitters/$sitterName': typeof SittersSitterNameRoute
   '/admin/': typeof AdminIndexRoute
+  '/sitter/': typeof SitterIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
   '/admin/bookings': typeof AdminBookingsRoute
+  '/sitter/requests': typeof SitterRequestsRoute
   '/sitters/$sitterName': typeof SittersSitterNameRoute
   '/admin': typeof AdminIndexRoute
+  '/sitter': typeof SitterIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,9 +99,12 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/sitter': typeof SitterRouteWithChildren
   '/admin/bookings': typeof AdminBookingsRoute
+  '/sitter/requests': typeof SitterRequestsRoute
   '/sitters/$sitterName': typeof SittersSitterNameRoute
   '/admin/': typeof AdminIndexRoute
+  '/sitter/': typeof SitterIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,26 +113,34 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bookings'
+    | '/sitter'
     | '/admin/bookings'
+    | '/sitter/requests'
     | '/sitters/$sitterName'
     | '/admin/'
+    | '/sitter/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/bookings'
     | '/admin/bookings'
+    | '/sitter/requests'
     | '/sitters/$sitterName'
     | '/admin'
+    | '/sitter'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/auth'
     | '/bookings'
+    | '/sitter'
     | '/admin/bookings'
+    | '/sitter/requests'
     | '/sitters/$sitterName'
     | '/admin/'
+    | '/sitter/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -114,11 +148,19 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   BookingsRoute: typeof BookingsRoute
+  SitterRoute: typeof SitterRouteWithChildren
   SittersSitterNameRoute: typeof SittersSitterNameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitter': {
+      id: '/sitter'
+      path: '/sitter'
+      fullPath: '/sitter'
+      preLoaderRoute: typeof SitterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bookings': {
       id: '/bookings'
       path: '/bookings'
@@ -147,6 +189,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitter/': {
+      id: '/sitter/'
+      path: '/'
+      fullPath: '/sitter/'
+      preLoaderRoute: typeof SitterIndexRouteImport
+      parentRoute: typeof SitterRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -160,6 +209,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sitters/$sitterName'
       preLoaderRoute: typeof SittersSitterNameRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/sitter/requests': {
+      id: '/sitter/requests'
+      path: '/requests'
+      fullPath: '/sitter/requests'
+      preLoaderRoute: typeof SitterRequestsRouteImport
+      parentRoute: typeof SitterRoute
     }
     '/admin/bookings': {
       id: '/admin/bookings'
@@ -183,11 +239,25 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface SitterRouteChildren {
+  SitterRequestsRoute: typeof SitterRequestsRoute
+  SitterIndexRoute: typeof SitterIndexRoute
+}
+
+const SitterRouteChildren: SitterRouteChildren = {
+  SitterRequestsRoute: SitterRequestsRoute,
+  SitterIndexRoute: SitterIndexRoute,
+}
+
+const SitterRouteWithChildren =
+  SitterRoute._addFileChildren(SitterRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   BookingsRoute: BookingsRoute,
+  SitterRoute: SitterRouteWithChildren,
   SittersSitterNameRoute: SittersSitterNameRoute,
 }
 export const routeTree = rootRouteImport

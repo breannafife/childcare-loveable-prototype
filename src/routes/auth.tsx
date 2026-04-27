@@ -27,6 +27,7 @@ function AuthPage() {
   const search = useSearch({ from: "/auth" });
   const { user, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [role, setRole] = useState<"parent" | "sitter">("parent");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -50,7 +51,10 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
-            data: { display_name: displayName || email.split("@")[0] },
+            data: {
+              display_name: displayName || email.split("@")[0],
+              role,
+            },
           },
         });
         if (err) throw err;
@@ -120,16 +124,37 @@ function AuthPage() {
 
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === "signup" && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Display name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Alex"
-                  className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">I am a…</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["parent", "sitter"] as const).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setRole(r)}
+                        className={`rounded-xl border px-3 py-2 text-sm font-semibold capitalize transition-colors ${
+                          role === r
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-card-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {r === "parent" ? "Parent" : "Babysitter"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Display name</label>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Alex"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+                  />
+                </div>
+              </>
             )}
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
