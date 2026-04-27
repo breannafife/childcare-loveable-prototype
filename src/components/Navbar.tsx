@@ -2,10 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { Heart, Menu, LogOut, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { isAdmin } = useIsAdmin();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border">
@@ -24,6 +26,11 @@ export function Navbar() {
           <Link to="/bookings" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             My Bookings
           </Link>
+          {isAdmin && (
+            <Link to="/admin" className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+              Admin
+            </Link>
+          )}
           {user ? (
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
