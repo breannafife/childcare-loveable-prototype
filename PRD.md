@@ -183,7 +183,8 @@ Landing
 | Area | Status | Notes |
 |---|---|---|
 | Sitter list & profiles | **Real** | Stored in Postgres `sitters` table; seeded once with the original prototype data |
-| Postal codes | **Real (seeded)** | Canadian FSA strings on each sitter row; filter matches first 3 chars |
+| Postal codes | **Real (seeded)** | Canadian FSA strings on each sitter row; hero + filter-bar inputs share state and match first 3 chars |
+| Certifications filter options | **Real** | Derived from the union of `sitters.certifications` arrays via `fetchCertifications()` — no hardcoded list |
 | Reviews | **Real** | Stored in `reviews` table, joined to sitter on `sitter_id`; "No reviews" rendered when count is 0 |
 | Kids-watched counts | **Seeded mock data** | Stored on the sitter row; values mirror the original prototype (Amara/Jake = 0) |
 | Availability slots | **Mocked** | Generated client-side in `src/lib/bookings-store.ts` (current week, 6 slots/day) |
