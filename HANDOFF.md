@@ -2,7 +2,7 @@
 
 **What this is:** a clickable interactive prototype of a peer-to-peer babysitter marketplace, built to test whether a "book a video intro call" affordance lifts browse-to-book conversion for sitters with little or no review history. See [`PRD.md`](./PRD.md) for product context and [`README.md`](./README.md) for the short version.
 
-**What this is not:** production code. There is no auth, no database, no backend, no real video, no real payments. Everything is mocked in memory and resets on refresh.
+**What this is not:** production code. There is no payments integration, no real video, no provider-side workflow. Sitter, review, and booking data live in a real Postgres database (Lovable Cloud) with auth, but availability slots and the Meet link are still mocked.
 
 ---
 
@@ -21,16 +21,19 @@ The dev server prints a localhost URL. Open it.
 
 ### 2. The mental model
 
-Three pages, one shared component, one in-memory store. That's the whole app.
+Four routes, a handful of components, one Postgres database, one auth provider. TanStack Query handles caching of all DB reads.
 
 ```
 URL                          File                                         What it does
 ─────────────────────────────────────────────────────────────────────────────────────────
-/                            src/routes/index.tsx                         Browse + filter sitters
-/sitters/:sitterName         src/routes/sitters.$sitterName.tsx           Sitter profile
-/bookings                    src/routes/bookings.tsx                      My scheduled video calls
+/                            src/routes/index.tsx                         Browse + filter sitters (from DB)
+/sitters/:sitterName         src/routes/sitters.$sitterName.tsx           Sitter profile + reviews (from DB)
+/bookings                    src/routes/bookings.tsx                      My scheduled video calls (signed-in user only)
+/auth                        src/routes/auth.tsx                          Sign in / sign up (email + Google)
                              src/components/ScheduleCallSheet.tsx         Bottom-sheet scheduler (overlay)
-                             src/lib/bookings-store.ts                    In-memory pub/sub for calls
+                             src/lib/sitters.ts                           Supabase queries for sitters + reviews
+                             src/lib/bookings-store.ts                    Supabase CRUD for scheduled_calls
+                             src/hooks/use-auth.tsx                       Auth context (session, signIn, signOut)
 ```
 
 ### 3. The flow that matters
@@ -39,25 +42,29 @@ The whole prototype exists to make **this one path** real:
 
 ```
 /  → filter by postal code → click "Intro Call" on a card
+   → if signed out: redirect to /auth → after sign-in, return to flow
    → ScheduleCallSheet opens → pick a slot → confirm
-   → scheduleCall() pushes into bookings-store
-   → /bookings re-renders via useSyncExternalStore and shows the new call
+   → INSERT into scheduled_calls (RLS scopes it to auth.uid())
+   → /bookings re-fetches via TanStack Query and shows the new call
 ```
 
 Everything else is supporting cast.
 
 ### 4. Where to make your first change
 
-- **Tweak a sitter's data** → `src/routes/index.tsx` (browse list) and `src/routes/sitters.$sitterName.tsx` (profile detail). Both have hardcoded arrays/objects at the top.
+- **Edit a sitter's data** → run a SQL update against the `sitters` table (via Lovable Cloud) — there are no hardcoded sitter arrays anymore.
+- **Add a sitter** → INSERT into `sitters` (and optionally `reviews`). The browse page and profile page will pick it up on next fetch.
 - **Change card UI** → `src/components/BabysitterCard.tsx`.
 - **Change the schedule sheet** → `src/components/ScheduleCallSheet.tsx`.
-- **Add a new route** → drop a file in `src/routes/` (flat dot-separated naming, e.g. `account.settings.tsx` → `/account/settings`). The TanStack Router Vite plugin auto-generates `routeTree.gen.ts` — **do not hand-edit it**.
+- **Change auth UX** → `src/routes/auth.tsx` and `src/hooks/use-auth.tsx`.
+- **Add a new route** → drop a file in `src/routes/` (flat dot-separated naming). The TanStack Router Vite plugin auto-generates `routeTree.gen.ts` — **do not hand-edit it**.
 
 ### 5. Things that will bite you
 
-- **Two separate sitter datasets.** The browse list (`src/routes/index.tsx`) and the profile detail (`src/routes/sitters.$sitterName.tsx`) each define their own data with overlapping but **non-identical** fields (e.g. `kidsInArea` is the count for the local FSA on the card, but a much larger lifetime count on the profile). If you change one, audit the other. See §4 for the consolidation recommendation.
-- **In-memory store, no persistence.** Refresh = bookings gone. This is intentional for a prototype.
-- **Hash navigation isn't used.** Sections are real routes. Add real route files for new pages, don't graft sections onto the index.
+- **RLS is enforced.** `scheduled_calls` rows are scoped to `auth.uid()`. A signed-out client will see zero rows. A signed-in client only sees their own.
+- **Sitter slug = lowercased name.** The profile route looks up by `lower(name) = $slug`. If you add a sitter, ensure names are URL-friendly.
+- **Availability is still mocked.** `generateWeekSlots()` in `bookings-store.ts` returns the same week of slots for every sitter. Real availability is the next backend step.
+- **Don't edit `src/integrations/supabase/client.ts` or `types.ts`.** They are auto-generated.
 - **Don't add `src/pages/`.** This is TanStack Start, not Next.js. Routes live in `src/routes/`.
 
 ---
@@ -68,14 +75,16 @@ Everything else is supporting cast.
 |---|---|---|
 | Framework | **TanStack Start v1** | File-based routing in `src/routes/`. Vite plugin generates `routeTree.gen.ts`. |
 | Build | **Vite 7** | `bun dev`, `bun build`. Cloudflare Workers target via `@cloudflare/vite-plugin`. |
-| UI runtime | **React 19** | Function components + hooks only. Uses `useSyncExternalStore` for the bookings store. |
+| UI runtime | **React 19** | Function components + hooks only. |
+| Data fetching | **TanStack Query v5** | `QueryClient` created per request in `getRouter()`, provided via `QueryClientProvider` in `__root.tsx`. |
 | Styling | **Tailwind v4** | Configured via `src/styles.css` (no `tailwind.config.js`). Native `@import "tailwindcss"` + `@theme inline`. |
 | Design tokens | OKLCH CSS variables | All colors are semantic tokens (e.g. `--primary`, `--trust`, `--verified`, `--warmth`, `--rebook`) — no hardcoded hex in components. |
 | Component primitives | **shadcn/ui** in `src/components/ui/` | Radix-based. Most are unused — only what the prototype needs is wired up. |
 | Icons | **lucide-react** | |
-| Forms / validation | `react-hook-form` + `zod` | Installed but **not currently used** by the prototype. |
+| Forms / validation | `react-hook-form` + `zod` | Installed; auth form uses light validation. |
 | Server runtime target | Cloudflare Workers (edge) | Constrains what server-side code can do; see TanStack Start docs. |
-| Backend | **None** | No Lovable Cloud, no Supabase, no API routes. Pure client-side mocks. |
+| Backend | **Lovable Cloud** (Supabase) | Postgres + Auth. Tables: `sitters`, `reviews`, `scheduled_calls`, `profiles`. RLS enforced everywhere. |
+| Auth | Email/password + Google OAuth | Auto-confirm signup enabled (no inbox round-trip in the prototype). |
 
 Package manager: **bun** (`bunfig.toml`, `bun.lockb`).
 
@@ -97,27 +106,41 @@ Package manager: **bun** (`bunfig.toml`, `bun.lockb`).
 ├── public/                          Static assets served as-is
 └── src/
     ├── styles.css                   Global styles + OKLCH design tokens
-    ├── router.tsx                   Router factory (createRouter, defaultErrorComponent)
+    ├── router.tsx                   Router factory (creates QueryClient + router per request)
     ├── routeTree.gen.ts             AUTO-GENERATED — do not edit
     ├── routes/
-    │   ├── __root.tsx               HTML shell, head meta, fonts, global 404
-    │   ├── index.tsx                /         — Browse + filter
-    │   ├── sitters.$sitterName.tsx  /sitters/:sitterName — Profile detail
-    │   └── bookings.tsx             /bookings — My scheduled calls
+    │   ├── __root.tsx               HTML shell, head meta, fonts, QueryClientProvider, AuthProvider, global 404
+    │   ├── index.tsx                /                    — Browse + filter (DB-backed)
+    │   ├── sitters.$sitterName.tsx  /sitters/:sitterName — Profile detail (DB-backed)
+    │   ├── bookings.tsx             /bookings            — My scheduled calls (signed-in user only)
+    │   └── auth.tsx                 /auth                — Sign in / sign up
     ├── components/
-    │   ├── Navbar.tsx               Top nav, mobile menu
+    │   ├── Navbar.tsx               Top nav, mobile menu, sign-in / sign-out controls
     │   ├── HeroSection.tsx          Landing hero (decorative search input)
     │   ├── FilterBar.tsx            Verified / certs / postal-code filter
     │   ├── BabysitterCard.tsx       Sitter card (browse grid)
     │   ├── ScheduleCallSheet.tsx    Bottom-sheet scheduler (overlay)
     │   └── ui/                      shadcn primitives (mostly unused)
     ├── lib/
-    │   ├── bookings-store.ts        In-memory pub/sub for scheduled calls
+    │   ├── sitters.ts               Supabase queries for sitters + reviews
+    │   ├── bookings-store.ts        Supabase CRUD for scheduled_calls + slot generation
     │   └── utils.ts                 cn() helper from shadcn
     ├── hooks/
+    │   ├── use-auth.tsx             Auth context (session, signIn, signOut, signUp)
     │   └── use-mobile.tsx           shadcn-provided breakpoint hook
+    ├── integrations/
+    │   ├── supabase/                AUTO-GENERATED — client.ts, types.ts (do not edit)
+    │   └── lovable/                 AUTO-GENERATED — managed OAuth helper
     └── assets/
-        └── sitter-1.jpg … sitter-6.jpg
+        └── (sitter photos now live in /public so they can be referenced by URL from the DB)
+```
+
+```
+public/
+└── sitter-1.jpg … sitter-6.jpg     Sitter photos referenced by `sitters.photo_url`
+supabase/
+├── config.toml                      Lovable Cloud project config
+└── migrations/                      Versioned SQL migrations
 ```
 
 ---
