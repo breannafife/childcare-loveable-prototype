@@ -8,17 +8,10 @@ interface FilterBarProps {
     postalCode: string;
   };
   onFiltersChange: (filters: FilterBarProps["filters"]) => void;
+  availableCertifications: string[];
 }
 
-const allCertifications = [
-  "CPR Certified",
-  "First Aid",
-  "Early Childhood Ed.",
-  "Special Needs",
-  "Newborn Care",
-];
-
-export function FilterBar({ filters, onFiltersChange }: FilterBarProps) {
+export function FilterBar({ filters, onFiltersChange, availableCertifications }: FilterBarProps) {
   const [certDropdownOpen, setCertDropdownOpen] = useState(false);
 
   const toggleVerified = () => {
