@@ -83,8 +83,8 @@ Explicitly out of scope: payments, messaging, real video, real availability, rea
 **Purpose.** Convert a curious visitor into a profile click — and, ideally, into an intro-call request before they even open a profile.
 
 **Key elements.**
-- Hero with the trust banner *"Every sitter is ID verified."*
-- Filter bar: postal code text input (sanitized to alphanumeric, max 7 chars), verified-only toggle, certification multiselect
+- Hero with the trust banner *"Every sitter is ID verified."* and a functional postal-code search (FSA prefix match) that filters the grid live and smooth-scrolls to results
+- Filter bar: postal code text input (sanitized to alphanumeric, max 7 chars, shares state with the hero), verified-only toggle, certification multiselect (options sourced from sitter profiles in the database)
 - Sitter card grid: photo, name, hourly rate, postal area, kids-watched count, reviews summary or *"No reviews"*, and a **"Book intro call"** CTA on every card
 
 **Primary CTAs.** "Book intro call" (experiment surface), card click → profile.
