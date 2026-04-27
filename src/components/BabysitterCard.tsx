@@ -4,19 +4,21 @@ import { useState } from "react";
 import { ScheduleCallSheet } from "./ScheduleCallSheet";
 
 interface BabysitterCardProps {
+  id: string;
+  slug: string;
   name: string;
   photo: string;
   isVerified: boolean;
   kidsInArea: number;
   experienceTags: string[];
-  certifications: string[];
   rebookedByFamilies: number;
   rating: number;
   hourlyRate: number;
-  distanceMiles: number;
 }
 
 export function BabysitterCard({
+  id,
+  slug,
   name,
   photo,
   isVerified,
@@ -26,9 +28,10 @@ export function BabysitterCard({
   rating,
   hourlyRate,
 }: BabysitterCardProps) {
+  const [callOpen, setCallOpen] = useState(false);
+
   return (
     <div className="group relative rounded-2xl bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/8 hover:-translate-y-1">
-      {/* Photo */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={photo}
@@ -49,7 +52,6 @@ export function BabysitterCard({
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-5 space-y-3.5">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-card-foreground font-display">{name}</h3>
@@ -95,35 +97,29 @@ export function BabysitterCard({
           </div>
         )}
 
-        {(() => {
-          const [callOpen, setCallOpen] = useState(false);
-          return (
-            <>
-              <div className="flex gap-2 mt-1">
-                <Link
-                  to="/sitters/$sitterName"
-                  params={{ sitterName: name.toLowerCase() }}
-                  className="flex-1 rounded-xl bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  View Profile
-                </Link>
-                <button
-                  onClick={() => setCallOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
-                >
-                  <Video size={14} />
-                  Intro Call
-                </button>
-              </div>
-              <ScheduleCallSheet
-                sitterName={name}
-                sitterPhoto={photo}
-                open={callOpen}
-                onClose={() => setCallOpen(false)}
-              />
-            </>
-          );
-        })()}
+        <div className="flex gap-2 mt-1">
+          <Link
+            to="/sitters/$sitterName"
+            params={{ sitterName: slug }}
+            className="flex-1 rounded-xl bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            View Profile
+          </Link>
+          <button
+            onClick={() => setCallOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
+          >
+            <Video size={14} />
+            Intro Call
+          </button>
+        </div>
+        <ScheduleCallSheet
+          sitterId={id}
+          sitterName={name}
+          sitterPhoto={photo}
+          open={callOpen}
+          onClose={() => setCallOpen(false)}
+        />
       </div>
     </div>
   );
