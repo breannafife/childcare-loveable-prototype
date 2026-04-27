@@ -302,7 +302,7 @@ interface TimeSlot {
 ## 6. Known Tech Debt (read before refactoring)
 
 1. **`useState` inside an IIFE in `BabysitterCard`.** The card uses an inline `(() => { const [x, setX] = useState(...); return <>...</>; })()` pattern around the schedule-sheet state. This works because the IIFE is called on every render in a stable position, but it's confusing and a lint rule away from breaking. Lift `callOpen` to a top-level hook in the component body.
-2. **Hero search input does nothing.** `HeroSection`'s zip-code input is decorative. Either wire it to the same filter state as `FilterBar`, or remove it to avoid misleading users (and stakeholders watching the demo).
+2. ~~Hero search input does nothing.~~ Fixed — the hero input now drives `filters.postalCode` in `index.tsx` and shares state with `FilterBar`.
 3. **Two `ScheduleCallSheet` instances per page.** Cards each render their own sheet, and the profile renders one too. Fine at this scale; if you ever lift state to a route-level provider, also lift the sheet to avoid mounting N copies.
 4. **`distance_miles` is unused on the card** but still in the dataset. Either surface it or drop the column.
 5. **`scheduled_calls.status` never advances.** Every call is created `Requested` and stays there. The "Past Calls" / "Completed" branch is dead until a real lifecycle (cron job, provider acceptance UI, or post-call mark-complete) is added.
