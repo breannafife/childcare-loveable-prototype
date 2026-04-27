@@ -286,7 +286,8 @@ interface TimeSlot {
 | Authentication | **Real** | `src/hooks/use-auth.tsx`, `src/routes/auth.tsx` | Email/password + Google OAuth, auto-confirm enabled |
 | User profiles | **Real** | `profiles` table + DB trigger | Auto-created on signup |
 | Google Meet link | **Mocked** | Static string in `scheduleCall()` | |
-| Hero zip-code search | **Decorative** | `HeroSection.tsx` | Input is not wired; real filter is in `FilterBar` |
+| Hero postal-code search | **Real** | `HeroSection.tsx` | Wired to the same `filters.postalCode` as `FilterBar`; FSA-prefix match against `sitters.postal_code` |
+| Certifications filter list | **Real** | `fetchCertifications()` in `src/lib/sitters.ts` | Derived live from the union of `sitters.certifications` |
 | Profile "Book {name}" CTA | **Decorative** | `sitters.$sitterName.tsx` | No booking primitive exists yet |
 | Bookings page "Confirmed Bookings" section | **Placeholder** | `bookings.tsx` | Always empty; no data source |
 | Routing, head meta, error/404 boundaries | **Real** | `__root.tsx`, `router.tsx`, per-route configs | Production-quality TanStack patterns |
