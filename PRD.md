@@ -2,7 +2,7 @@
 
 **Status:** Clickable interactive prototype (not production)
 **Owner:** Product Manager Breanna Fife
-**Stack:** TanStack Start v1 (React 19, Vite 7), Tailwind v4, shadcn/ui — all data mocked in memory
+**Stack:** TanStack Start v1 (React 19, Vite 7), Tailwind v4, shadcn/ui, TanStack Query — backed by Lovable Cloud (Postgres + Auth)
 **Companion docs:** [`README.md`](./README.md)
 
 ---
@@ -63,15 +63,16 @@ A parent browses an enriched provider profile and **initiates a booking with a z
 
 In scope for the prototype:
 
-- Browse a grid of verified sitters on the landing page
+- Browse a grid of verified sitters on the landing page (data served from Postgres, anonymous browsing)
 - Filter by **Canadian postal code** (FSA — first three characters), verification status, and certifications
 - Open an enriched **sitter profile** with bio, experience tags, certifications, kids-watched count, and reviews (or an explicit "No reviews" state)
-- **Book an intro call** directly from a sitter card or from the profile
-- Pick a slot from a week of mock availability split into Morning / Afternoon / Evening
-- Receive a confirmation with a generated **Google Meet link**
-- See scheduled calls in **My Bookings** under a dedicated "Upcoming calls" section, with status (Requested / Confirmed / Completed)
+- **Sign up / sign in** with email + password or Google to gate the booking step
+- **Book an intro call** from a sitter card or profile (sign-in required at the moment of booking)
+- Pick a slot from a week of generated availability split into Morning / Afternoon / Evening
+- Receive a confirmation with a placeholder **Google Meet link**
+- See scheduled calls in **My Bookings** under "Upcoming calls", scoped to the signed-in user, with status (Requested / Confirmed / Completed)
 
-Explicitly out of scope: authentication, payments, messaging, real video, real availability, real verification, provider-side scheduling, notifications, cancellation/reschedule flows.
+Explicitly out of scope: payments, messaging, real video, real availability, real verification, provider-side scheduling, notifications, cancellation/reschedule flows.
 
 ---
 
@@ -181,15 +182,17 @@ Landing
 
 | Area | Status | Notes |
 |---|---|---|
-| Sitter list & profiles | **Mocked** | Hardcoded in `src/routes/index.tsx` and `src/routes/sitters.$sitterName.tsx` |
-| Postal codes | **Mocked** | Canadian FSA strings on each sitter; filter matches first 3 chars |
-| Reviews | **Mocked** | Inline per sitter; "No reviews" rendered when count is 0 |
-| Kids-watched counts | **Mocked** | Realistic 1–7 range; Amara and Jake set to 0 to exercise the zero-trust path |
+| Sitter list & profiles | **Real** | Stored in Postgres `sitters` table; seeded once with the original prototype data |
+| Postal codes | **Real (seeded)** | Canadian FSA strings on each sitter row; filter matches first 3 chars |
+| Reviews | **Real** | Stored in `reviews` table, joined to sitter on `sitter_id`; "No reviews" rendered when count is 0 |
+| Kids-watched counts | **Seeded mock data** | Stored on the sitter row; values mirror the original prototype (Amara/Jake = 0) |
 | Availability slots | **Mocked** | Generated client-side in `src/lib/bookings-store.ts` (current week, 6 slots/day) |
-| Scheduled calls | **Mocked (in-memory)** | Pub/sub store via `useSyncExternalStore`; lost on refresh |
+| Scheduled calls | **Real** | `scheduled_calls` table, scoped to the signed-in user via RLS |
+| Authentication | **Real** | Email/password + Google OAuth via Lovable Cloud; auto-confirm signup enabled for the prototype |
+| User profiles | **Real** | `profiles` table auto-populated on signup via DB trigger |
 | Google Meet link | **Mocked** | Static placeholder URL on every confirmation |
-| ID verification badge | **Mocked** | Boolean flag on sitter object; no real verification pipeline |
-| Auth, payments, messaging | **Not built** | Out of scope for a directional test |
+| ID verification badge | **Seeded mock data** | Boolean flag on sitter row; no real verification pipeline |
+| Payments, messaging | **Not built** | Out of scope for a directional test |
 | Provider-side scheduling | **Not built** | Parent-side experiment first; sitters get mock availability |
 | Calendar integration | **Not built** | No real Google/Apple calendar write |
 | Notifications | **Not built** | No email/SMS/push |
@@ -211,7 +214,7 @@ Landing
 
 ## 10. Open Questions / Next Iteration
 
-1. **Gating.** Should the call CTA require sign-in, or stay anonymous to maximise top-of-funnel?
+1. **Gating.** Currently anonymous browse, sign-in required at booking. Should we move the gate earlier (e.g. require sign-in to view profiles) to capture more signal, or push it later (book without account, claim after) to maximise top-of-funnel?
 2. **Attribution.** With the CTA on both card and profile, how do we cleanly attribute booking lift to the call vs. the profile content?
 3. **Provider acceptance.** Do sitters confirm slots manually, or is published availability authoritative? The answer changes the `Requested → Confirmed` state machine.
 4. **Trust ladder.** If video calls work, does the verification badge still earn its place — or do we lean into the call as the primary trust primitive?
