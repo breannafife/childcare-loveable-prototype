@@ -1,44 +1,73 @@
-## Plan
+# Add sitter accounts (without disrupting current mock data)
 
-Two changes: (1) make the hero "zip code" input a real postal-code filter wired to the sitter list, (2) move the hardcoded certifications list out of `FilterBar.tsx` into Supabase.
+The existing `sitters` rows stay exactly as they are — they remain the source of truth for the public catalog and admin tools. We only **add** the ability for a real person to claim/own a row by signing up with a sitter role.
 
-### 1. Hero postal-code search → filters sitters
+## What changes
 
-Today the hero `<input>` in `HeroSection.tsx` is decorative — it doesn't update any state. Filtering already exists on `/` via `FilterBar` using `postalCode` and the first 3 chars of the sitter's `postal_code` (FSA prefix). We'll wire the hero to that same state.
+### 1. Database
 
-- Rename label/placeholder from "zip code" → "postal code" (e.g., "Enter your postal code", e.g. `M5V`).
-- Lift filter state: `HeroSection` becomes a controlled component receiving `postalCode` + `onPostalCodeChange` from `src/routes/index.tsx`.
-- Sanitize input: uppercase, strip non-alphanumeric, cap length (same logic as `FilterBar`).
-- Submitting the search (Enter or "Search" button) scrolls to the sitters section; typing already filters live (existing logic in `index.tsx` matches first 3 chars).
-- The `FilterBar` postal input continues to work — both bind to the same `filters.postalCode`.
-- Add a small "Showing sitters in {FSA}" hint above the grid when 3+ chars are typed.
+- Add `'sitter'` to the `app_role` enum.
+- Add a nullable `user_id uuid` column on `public.sitters`. Existing rows keep `user_id = NULL` (these are the unclaimed mock catalog entries). When a real sitter signs up, a row is either created or linked here.
+- Add a unique constraint so one auth user can own at most one sitter row.
+- Update `sitters` RLS:
+  - Public can still read all rows (unchanged).
+  - Admins can still do everything (unchanged).
+  - **New:** a sitter can `UPDATE` only the row where `sitters.user_id = auth.uid()`.
+  - **New:** a sitter can `INSERT` a row only with `user_id = auth.uid()` (used during signup if they don't claim an existing row).
+- Update `scheduled_calls` RLS so sitters can `SELECT` calls where `sitter_id` belongs to them (read-only access to their incoming requests).
 
-No backend changes for this part — `sitters.postal_code` already exists and the prefix match is already implemented.
+### 2. Sign-up flow
 
-### 2. Certifications list from Supabase
+On `/auth`, the signup form gets a small role toggle: **"I'm a parent"** (default) / **"I'm a sitter"**. The choice is passed via `options.data.role` on `supabase.auth.signUp`.
 
-Today `allCertifications` is a hardcoded array in `FilterBar.tsx`. We'll derive it from the database so adding a new certification on a sitter automatically shows up in the filter.
+The existing `handle_new_user` trigger is extended to:
+- Always create the `profiles` row (unchanged).
+- Insert into `user_roles` with the chosen role (`'parent'` or `'sitter'`). Defaults to `'parent'` if missing.
+- If `role = 'sitter'`, also create a minimal `sitters` row owned by that user (name = display name, empty bio, defaults for the rest) so they have something to edit.
 
-Two options — recommended: **derive from existing data** (no schema change, simplest, accurate by definition).
+### 3. Sitter dashboard — new route `/sitter`
 
-- In `src/lib/sitters.ts`, add `fetchCertifications()` that selects `certifications` from the `sitters` table, flattens, dedupes, and sorts.
-- In `src/routes/index.tsx`, add a second `useQuery({ queryKey: ["certifications"], queryFn: fetchCertifications })`.
-- Pass the list down to `FilterBar` as a `certifications` prop; remove the hardcoded `allCertifications` const.
-- Show a small skeleton/disabled state in the dropdown while loading.
+Mirrors the `/admin` pattern: a layout that checks the user has the `sitter` role, with two tabs:
 
-(If the user later wants admin-managed canonical list, we can add a `certifications` table — not needed now.)
+- **`/sitter`** — Edit my profile. Pre-filled from their `sitters` row. They can edit bio, photo URL, hourly rate, postal code, availability, experience tags, and certifications. Verified status and admin-only fields stay read-only (only admins can flip `is_verified`).
+- **`/sitter/requests`** — Read-only list of `scheduled_calls` where `sitter_id = my sitter row id`. Shows date, status, parent display name, meet link.
 
-### 3. Docs
+### 4. Navbar
 
-- `PRD.md`: update the search section to say "postal code (FSA prefix match)" and note certifications are sourced from sitter profiles.
-- `HANDOFF.md`: note hero search is now functional and certifications list is dynamic; remove the "hardcoded filter options" caveat.
+The existing `useIsAdmin` hook gets a sibling `useIsSitter`. Navbar shows:
+- "Admin" link if admin (existing).
+- "My Sitter Profile" link if sitter.
+- "My Bookings" stays for everyone (parents use it; sitters/admins just won't have bookings).
 
-### Files touched
+### 5. Mock data preservation
 
-- `src/components/HeroSection.tsx` — controlled input, postal-code copy
-- `src/routes/index.tsx` — lift state, pass to hero, fetch certifications, pass to FilterBar
-- `src/components/FilterBar.tsx` — accept `certifications` prop, drop hardcoded array
-- `src/lib/sitters.ts` — add `fetchCertifications()`
-- `PRD.md`, `HANDOFF.md` — reflect changes
+- No existing `sitters` rows are touched — they keep `user_id = NULL` and remain visible in the public catalog and the admin tool exactly as today.
+- The home page filter, sitter detail page, and `ScheduleCallSheet` keep working unchanged.
+- Admins can optionally link a mock sitter to a real account later by setting `sitters.user_id` from the admin sitter editor (small additional input field on each row).
 
-No DB migrations, no auth changes.
+## Out of scope for this step
+
+- Sitters approving/declining call requests (currently parents schedule and the call is auto-confirmed). We can add accept/decline as a follow-up.
+- Sitter-uploaded photos (we keep `photo_url` as a text URL field for now; storage bucket is a separate task).
+- Email notifications when a sitter receives a request.
+
+## Files touched
+
+**New:**
+- `supabase/migrations/<timestamp>_add_sitter_role.sql` — enum value, column, RLS, trigger update.
+- `src/hooks/use-is-sitter.tsx`
+- `src/routes/sitter.tsx` — layout + role guard.
+- `src/routes/sitter.index.tsx` — profile editor.
+- `src/routes/sitter.requests.tsx` — incoming call requests.
+
+**Edited:**
+- `src/routes/auth.tsx` — add role toggle on signup.
+- `src/components/Navbar.tsx` — sitter link.
+- `src/routes/admin.index.tsx` — small "linked user_id" field on each row.
+- `src/lib/sitters.ts` — add `user_id` to `SitterRow` type and a `fetchMySitter()` helper.
+
+## Risks / things to verify after migration
+
+- The Supabase types regenerate so `SitterRow.user_id` is recognized.
+- The updated `handle_new_user` trigger must remain `SECURITY DEFINER` and not break existing parent signups.
+- Confirm no existing UI does `sitters.insert` from a non-admin context that would now be blocked by the tightened insert policy.
