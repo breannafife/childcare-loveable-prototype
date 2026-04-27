@@ -11,8 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SittersSitterNameRouteImport } from './routes/sitters.$sitterName'
+import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
 
 const BookingsRoute = BookingsRouteImport.update({
   id: '/bookings',
@@ -24,46 +27,91 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const SittersSitterNameRoute = SittersSitterNameRouteImport.update({
   id: '/sitters/$sitterName',
   path: '/sitters/$sitterName',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/sitters/$sitterName': typeof SittersSitterNameRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/sitters/$sitterName': typeof SittersSitterNameRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
   '/sitters/$sitterName': typeof SittersSitterNameRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/bookings' | '/sitters/$sitterName'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/bookings'
+    | '/admin/bookings'
+    | '/sitters/$sitterName'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/bookings' | '/sitters/$sitterName'
-  id: '__root__' | '/' | '/auth' | '/bookings' | '/sitters/$sitterName'
+  to:
+    | '/'
+    | '/auth'
+    | '/bookings'
+    | '/admin/bookings'
+    | '/sitters/$sitterName'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/bookings'
+    | '/admin/bookings'
+    | '/sitters/$sitterName'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   BookingsRoute: typeof BookingsRoute
   SittersSitterNameRoute: typeof SittersSitterNameRoute
@@ -85,12 +133,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/sitters/$sitterName': {
       id: '/sitters/$sitterName'
@@ -99,11 +161,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SittersSitterNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/bookings': {
+      id: '/admin/bookings'
+      path: '/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminBookingsRoute: typeof AdminBookingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminBookingsRoute: AdminBookingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   BookingsRoute: BookingsRoute,
   SittersSitterNameRoute: SittersSitterNameRoute,
