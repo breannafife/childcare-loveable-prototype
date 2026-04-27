@@ -152,8 +152,8 @@ supabase/
 | Component | File | Purpose | Used by |
 |---|---|---|---|
 | `Navbar` | `src/components/Navbar.tsx` | Fixed top nav. Logo links home, links to `/` and `/bookings`. Shows **Sign In** when signed out and a **Sign Out** control when signed in (uses `useAuth()`). Mobile hamburger menu. | All routes |
-| `HeroSection` | `src/components/HeroSection.tsx` | Landing hero. Headline, "Every sitter is ID verified" trust banner, and a **decorative** zip-code search bar (the input is not wired to filtering — the real filter lives in `FilterBar`). | `/` only |
-| `FilterBar` | `src/components/FilterBar.tsx` | Live filter controls. Verified-only toggle, certifications dropdown (multi-select), Canadian postal-code text input (sanitized to `[A-Z0-9 ]`, max 7 chars, matches by FSA = first 3 chars), and a "Clear all" button when any filter is active. Drives the `filters` state in `index.tsx`. | `/` only |
+| `HeroSection` | `src/components/HeroSection.tsx` | Landing hero. Headline, "Every sitter is ID verified" trust banner, and a **functional** postal-code search bar. Controlled by `index.tsx` — typing updates the same `filters.postalCode` that `FilterBar` uses, so the sitter grid filters live (FSA prefix match on first 3 chars). The Search button smooth-scrolls to the sitters grid. | `/` only |
+| `FilterBar` | `src/components/FilterBar.tsx` | Live filter controls. Verified-only toggle, certifications dropdown (multi-select, options sourced from Supabase via `fetchCertifications()` — deduped union of all sitters' `certifications` arrays), Canadian postal-code text input (sanitized to `[A-Z0-9 ]`, max 7 chars, matches by FSA = first 3 chars), and a "Clear all" button when any filter is active. Drives the `filters` state in `index.tsx`. | `/` only |
 | `BabysitterCard` | `src/components/BabysitterCard.tsx` | Sitter card in the browse grid. Photo, ID-verified badge, hourly rate, name, rating (or `"No reviews"` when `rating === 0`), "Has babysat N kids in your area" (or `"New to your area"` when `kidsInArea === 0`), experience tags, "Rebooked by N families" callout, and two CTAs: **View Profile** (link to `/sitters/$sitterName`) and **Intro Call** (opens `ScheduleCallSheet` if signed in, otherwise routes to `/auth`). | `/` |
 | `ScheduleCallSheet` | `src/components/ScheduleCallSheet.tsx` | Modal bottom sheet for scheduling a 15-minute Google Meet pre-screening call. Two steps: `select` (week of slots grouped by day, then by Morning/Afternoon/Evening) and `confirmed` (success state with date, time, and Meet link). Calls `scheduleCall()` (Supabase INSERT) on confirm and invalidates the bookings query. Resets state on close. | `BabysitterCard`, `/sitters/$sitterName` |
 
@@ -286,7 +286,8 @@ interface TimeSlot {
 | Authentication | **Real** | `src/hooks/use-auth.tsx`, `src/routes/auth.tsx` | Email/password + Google OAuth, auto-confirm enabled |
 | User profiles | **Real** | `profiles` table + DB trigger | Auto-created on signup |
 | Google Meet link | **Mocked** | Static string in `scheduleCall()` | |
-| Hero zip-code search | **Decorative** | `HeroSection.tsx` | Input is not wired; real filter is in `FilterBar` |
+| Hero postal-code search | **Real** | `HeroSection.tsx` | Wired to the same `filters.postalCode` as `FilterBar`; FSA-prefix match against `sitters.postal_code` |
+| Certifications filter list | **Real** | `fetchCertifications()` in `src/lib/sitters.ts` | Derived live from the union of `sitters.certifications` |
 | Profile "Book {name}" CTA | **Decorative** | `sitters.$sitterName.tsx` | No booking primitive exists yet |
 | Bookings page "Confirmed Bookings" section | **Placeholder** | `bookings.tsx` | Always empty; no data source |
 | Routing, head meta, error/404 boundaries | **Real** | `__root.tsx`, `router.tsx`, per-route configs | Production-quality TanStack patterns |
@@ -301,7 +302,7 @@ interface TimeSlot {
 ## 6. Known Tech Debt (read before refactoring)
 
 1. **`useState` inside an IIFE in `BabysitterCard`.** The card uses an inline `(() => { const [x, setX] = useState(...); return <>...</>; })()` pattern around the schedule-sheet state. This works because the IIFE is called on every render in a stable position, but it's confusing and a lint rule away from breaking. Lift `callOpen` to a top-level hook in the component body.
-2. **Hero search input does nothing.** `HeroSection`'s zip-code input is decorative. Either wire it to the same filter state as `FilterBar`, or remove it to avoid misleading users (and stakeholders watching the demo).
+2. ~~Hero search input does nothing.~~ Fixed — the hero input now drives `filters.postalCode` in `index.tsx` and shares state with `FilterBar`.
 3. **Two `ScheduleCallSheet` instances per page.** Cards each render their own sheet, and the profile renders one too. Fine at this scale; if you ever lift state to a route-level provider, also lift the sheet to avoid mounting N copies.
 4. **`distance_miles` is unused on the card** but still in the dataset. Either surface it or drop the column.
 5. **`scheduled_calls.status` never advances.** Every call is created `Requested` and stays there. The "Past Calls" / "Completed" branch is dead until a real lifecycle (cron job, provider acceptance UI, or post-call mark-complete) is added.

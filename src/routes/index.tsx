@@ -5,7 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { HeroSection } from "@/components/HeroSection";
 import { BabysitterCard } from "@/components/BabysitterCard";
 import { FilterBar } from "@/components/FilterBar";
-import { fetchSitters } from "@/lib/sitters";
+import { fetchSitters, fetchCertifications } from "@/lib/sitters";
 import { useState, useMemo } from "react";
 
 export const Route = createFileRoute("/")({
@@ -30,6 +30,11 @@ function Index() {
     queryFn: fetchSitters,
   });
 
+  const { data: certifications = [] } = useQuery({
+    queryKey: ["certifications"],
+    queryFn: fetchCertifications,
+  });
+
   const filteredSitters = useMemo(() => {
     return sitters.filter((s) => {
       if (filters.verifiedOnly && !s.is_verified) return false;
@@ -49,9 +54,12 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <HeroSection />
+      <HeroSection
+        postalCode={filters.postalCode}
+        onPostalCodeChange={(value) => setFilters((f) => ({ ...f, postalCode: value }))}
+      />
 
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section id="sitters-grid" className="mx-auto max-w-6xl px-6 py-16">
         <div className="mb-10 text-center">
           <h2 className="font-display text-3xl font-bold text-foreground">
             Top sitters near you
@@ -62,7 +70,7 @@ function Index() {
         </div>
 
         <div className="mb-8">
-          <FilterBar filters={filters} onFiltersChange={setFilters} />
+          <FilterBar filters={filters} onFiltersChange={setFilters} availableCertifications={certifications} />
         </div>
 
         {isLoading ? (

@@ -36,6 +36,13 @@ export async function fetchSitters(): Promise<SitterRow[]> {
   return (data ?? []) as SitterRow[];
 }
 
+export async function fetchCertifications(): Promise<string[]> {
+  const { data, error } = await supabase.from("sitters").select("certifications");
+  if (error) throw error;
+  const all = (data ?? []).flatMap((row) => (row.certifications ?? []) as string[]);
+  return Array.from(new Set(all)).sort();
+}
+
 export async function fetchSitterBySlug(slug: string): Promise<{ sitter: SitterRow; reviews: ReviewRow[] } | null> {
   const { data: sitter, error } = await supabase
     .from("sitters")

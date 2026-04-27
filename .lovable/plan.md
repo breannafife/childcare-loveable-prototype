@@ -1,99 +1,44 @@
-## Goal
+## Plan
 
-Create `PRD.md` at the repo root summarizing the prototype as a standard product requirements document (3–5 pages), including a proposed metrics & instrumentation section. The file lives alongside `README.md` so it syncs with GitHub automatically.
+Two changes: (1) make the hero "zip code" input a real postal-code filter wired to the sitter list, (2) move the hardcoded certifications list out of `FilterBar.tsx` into Supabase.
 
-## Deliverable
+### 1. Hero postal-code search → filters sitters
 
-A single new file: `PRD.md` (Markdown, no code changes elsewhere).
+Today the hero `<input>` in `HeroSection.tsx` is decorative — it doesn't update any state. Filtering already exists on `/` via `FilterBar` using `postalCode` and the first 3 chars of the sitter's `postal_code` (FSA prefix). We'll wire the hero to that same state.
 
-## PRD Structure
+- Rename label/placeholder from "zip code" → "postal code" (e.g., "Enter your postal code", e.g. `M5V`).
+- Lift filter state: `HeroSection` becomes a controlled component receiving `postalCode` + `onPostalCodeChange` from `src/routes/index.tsx`.
+- Sanitize input: uppercase, strip non-alphanumeric, cap length (same logic as `FilterBar`).
+- Submitting the search (Enter or "Search" button) scrolls to the sitters section; typing already filters live (existing logic in `index.tsx` matches first 3 chars).
+- The `FilterBar` postal input continues to work — both bind to the same `filters.postalCode`.
+- Add a small "Showing sitters in {FSA}" hint above the grid when 3+ chars are typed.
 
-1. **Overview**
-   - One-paragraph product description (TinyWatch / SitterTrust prototype)
-   - Status: clickable interactive prototype, not production
-   - Stack one-liner (TanStack Start, mocked data)
+No backend changes for this part — `sitters.postal_code` already exists and the prefix match is already implemented.
 
-2. **Target Users**
-   - Primary: parents browsing for in-home babysitters, especially first-time bookers in dense urban postal areas (M5V, M4W, etc.)
-   - Secondary: new providers (zero-review sitters like Amara, Jake) who need a path to first booking
-   - Excluded for this iteration: provider-side workflows, ops/admin
+### 2. Certifications list from Supabase
 
-3. **Problem & Hypothesis**
-   - Problem statement (71% bounce at provider selection, 64% zero-review providers, 47-day median to first booking, 72% 90-day new-provider churn)
-   - Hypothesis (if/then/because) — video pre-screening calls
-   - Kill switch
-   - "Validated if" condition (zero-review provider booking initiated after a video call)
+Today `allCertifications` is a hardcoded array in `FilterBar.tsx`. We'll derive it from the database so adding a new certification on a sitter automatically shows up in the filter.
 
-4. **Scope: What It Does**
-   - Browse verified sitters by Canadian postal code (FSA match)
-   - Filter by verification status and certifications
-   - View enriched profile (bio, experience, certifications, kids watched, reviews or "No reviews")
-   - Schedule a video intro call from a card or profile
-   - View scheduled calls in "My Bookings"
+Two options — recommended: **derive from existing data** (no schema change, simplest, accurate by definition).
 
-5. **Screens & Purpose**
-   For each: route, purpose, key elements, primary CTA, success state.
-   - Landing / Browse — `/`
-   - Sitter Profile — `/sitters/$sitterName`
-   - Schedule-a-call bottom sheet (component overlay)
-   - My Bookings — `/bookings`
+- In `src/lib/sitters.ts`, add `fetchCertifications()` that selects `certifications` from the `sitters` table, flattens, dedupes, and sorts.
+- In `src/routes/index.tsx`, add a second `useQuery({ queryKey: ["certifications"], queryFn: fetchCertifications })`.
+- Pass the list down to `FilterBar` as a `certifications` prop; remove the hardcoded `allCertifications` const.
+- Show a small skeleton/disabled state in the dropdown while loading.
 
-6. **Core User Flow**
-   ```text
-   Landing → Postal-code filter (M5V) → Card with "Book intro call"
-     → Profile (zero-review sitter) → "Schedule a call"
-       → Pick slot (Morning/Afternoon/Evening across week)
-         → Confirm → Google Meet link generated
-           → Visible in /bookings under "Upcoming calls"
-   ```
-   Plus: alternate flow (browse without filter), empty-state flow (no matches → clear filters).
+(If the user later wants admin-managed canonical list, we can add a `certifications` table — not needed now.)
 
-7. **Key Metrics & Instrumentation**
-   - **North-star:** browse → book conversion lift of +10% on cohort that uses the video-call feature
-   - **Funnel definition:**
-     1. `landing_view`
-     2. `sitter_card_impression` (per card)
-     3. `profile_view` (with `sitter_id`, `review_count`)
-     4. `schedule_call_opened`
-     5. `call_slot_selected`
-     6. `call_confirmed` (with `meet_link_generated: true`)
-     7. `booking_initiated` (with `had_prior_call: bool`, `review_count`)
-   - **Supporting metrics:** video-call attach rate, zero-review profile → call rate, call → booking conversion, time from signup to first booking (provider-side), 90-day new-provider churn
-   - **Success thresholds:**
-     - Validated: ≥10% lift in browse→book among call-feature users vs. control, AND ≥1 confirmed booking on a zero-review provider preceded by a call
-     - Killed: video-call cohort shows no statistically meaningful lift OR zero-review-after-call booking rate stays flat
-   - Cohort/segmentation: by review count bucket (0, 1–4, 5+), by FSA, by new vs. returning parent
+### 3. Docs
 
-8. **Mocked vs. Real**
+- `PRD.md`: update the search section to say "postal code (FSA prefix match)" and note certifications are sourced from sitter profiles.
+- `HANDOFF.md`: note hero search is now functional and certifications list is dynamic; remove the "hardcoded filter options" caveat.
 
-   | Area | Status | Notes |
-   |---|---|---|
-   | Sitter list & profiles | Mocked | Hardcoded in `src/routes/index.tsx` and `sitters.$sitterName.tsx` |
-   | Postal codes | Mocked | Canadian FSA strings on each sitter |
-   | Reviews | Mocked | Inline per sitter; "No reviews" rendered when count is 0 |
-   | Availability slots | Mocked | Generated client-side in `src/lib/bookings-store.ts` |
-   | Scheduled calls | Mocked (in-memory) | Pub/sub store, lost on refresh |
-   | Google Meet link | Mocked | Static placeholder URL |
-   | ID verification badge | Mocked | Boolean flag on sitter object; no real verification |
-   | Auth, payments, messaging | Not built | Out of scope for directional test |
-   | Provider-side scheduling | Not built | Parent-side experiment first |
-   | Calendar integration | Not built | No real Google/Apple calendar |
-   | Review-prompting flow | Not built | Separate hypothesis; would muddy attribution |
+### Files touched
 
-9. **Out of Scope (explicit non-goals)**
-   - Real payments, auth, messaging
-   - Provider onboarding / verification pipeline
-   - Notifications (email/SMS/push)
-   - Cancellation, rescheduling, no-show handling
-   - Search beyond FSA matching (no geo-radius, no map)
+- `src/components/HeroSection.tsx` — controlled input, postal-code copy
+- `src/routes/index.tsx` — lift state, pass to hero, fetch certifications, pass to FilterBar
+- `src/components/FilterBar.tsx` — accept `certifications` prop, drop hardcoded array
+- `src/lib/sitters.ts` — add `fetchCertifications()`
+- `PRD.md`, `HANDOFF.md` — reflect changes
 
-10. **Open Questions / Next Iteration**
-    - Should the call CTA be gated behind sign-in?
-    - How do we attribute booking lift cleanly when both card and profile expose the call CTA?
-    - Provider acceptance UX: do sitters need to confirm slots, or is availability authoritative?
-
-## Notes on Delivery
-
-- File will be written to `/PRD.md` (project root) so it syncs to GitHub via the existing connector.
-- No source code changes; existing prototype behavior is unchanged.
-- Length target: ~3–5 pages rendered (~1,500–2,500 words).
+No DB migrations, no auth changes.

@@ -83,8 +83,8 @@ Explicitly out of scope: payments, messaging, real video, real availability, rea
 **Purpose.** Convert a curious visitor into a profile click — and, ideally, into an intro-call request before they even open a profile.
 
 **Key elements.**
-- Hero with the trust banner *"Every sitter is ID verified."*
-- Filter bar: postal code text input (sanitized to alphanumeric, max 7 chars), verified-only toggle, certification multiselect
+- Hero with the trust banner *"Every sitter is ID verified."* and a functional postal-code search (FSA prefix match) that filters the grid live and smooth-scrolls to results
+- Filter bar: postal code text input (sanitized to alphanumeric, max 7 chars, shares state with the hero), verified-only toggle, certification multiselect (options sourced from sitter profiles in the database)
 - Sitter card grid: photo, name, hourly rate, postal area, kids-watched count, reviews summary or *"No reviews"*, and a **"Book intro call"** CTA on every card
 
 **Primary CTAs.** "Book intro call" (experiment surface), card click → profile.
@@ -183,7 +183,8 @@ Landing
 | Area | Status | Notes |
 |---|---|---|
 | Sitter list & profiles | **Real** | Stored in Postgres `sitters` table; seeded once with the original prototype data |
-| Postal codes | **Real (seeded)** | Canadian FSA strings on each sitter row; filter matches first 3 chars |
+| Postal codes | **Real (seeded)** | Canadian FSA strings on each sitter row; hero + filter-bar inputs share state and match first 3 chars |
+| Certifications filter options | **Real** | Derived from the union of `sitters.certifications` arrays via `fetchCertifications()` — no hardcoded list |
 | Reviews | **Real** | Stored in `reviews` table, joined to sitter on `sitter_id`; "No reviews" rendered when count is 0 |
 | Kids-watched counts | **Seeded mock data** | Stored on the sitter row; values mirror the original prototype (Amara/Jake = 0) |
 | Availability slots | **Mocked** | Generated client-side in `src/lib/bookings-store.ts` (current week, 6 slots/day) |
