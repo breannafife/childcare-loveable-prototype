@@ -298,56 +298,32 @@ interface TimeSlot {
 
 ---
 
-## 5. Mocked vs. Real
-
-| Area | Status | Where it lives | Notes |
-|---|---|---|---|
-| Sitter list & profiles | **Mocked** (hardcoded) | `src/routes/index.tsx`, `src/routes/sitters.$sitterName.tsx` | Two separate, drift-prone datasets |
-| Sitter photos | **Mocked** (bundled assets) | `src/assets/sitter-*.jpg` | |
-| Postal codes | **Mocked** | Card-level `postalCode` field | Canadian FSA-based filter |
-| Reviews | **Mocked** (inline per sitter) | Profile dataset | Card shows `"No reviews"` when `rating === 0` |
-| Kids-watched counts | **Mocked** | Card field is local (1–7, plus 0 for Amara/Jake to exercise zero-trust path); profile field is lifetime | |
-| ID verification badge | **Mocked** | `isVerified: boolean` flag | No real verification pipeline |
-| Availability slots | **Mocked**, generated client-side | `bookings-store.ts → generateWeekSlots()` | Same slots for every sitter |
-| Scheduled calls | **Mocked**, in-memory only | `bookings-store.ts` | Lost on refresh |
-| Google Meet link | **Mocked** | Static string in `scheduleCall()` | |
-| Hero zip-code search | **Decorative** | `HeroSection.tsx` | Input is not wired; real filter is in `FilterBar` |
-| Navbar "Sign Up" | **Decorative** | `Navbar.tsx` | No auth |
-| Profile "Book {name}" CTA | **Decorative** | `sitters.$sitterName.tsx` | No booking primitive exists yet |
-| Bookings page "Confirmed Bookings" section | **Placeholder** | `bookings.tsx` | Always empty; no data source |
-| Routing, head meta, error/404 boundaries | **Real** | `__root.tsx`, `router.tsx`, per-route configs | Production-quality TanStack patterns |
-| Design system (tokens, typography) | **Real** | `src/styles.css` | OKLCH semantic tokens, ready to extend |
-| Auth, payments, messaging, notifications | **Not built** | — | Out of scope for the experiment |
-| Backend / database / API | **Not built** | — | No Lovable Cloud connected |
-| Provider-side workflows | **Not built** | — | Parent-side experiment first |
-| Calendar integration | **Not built** | — | No real Google/Apple calendar write |
-| Analytics / instrumentation | **Not built** | — | See PRD §7 for the proposed event spec |
-
----
-
 ## 6. Known Tech Debt (read before refactoring)
 
-1. **Duplicate sitter datasets.** Browse and profile maintain independent objects with overlapping fields. Consolidate into a single `src/data/sitters.ts` (or a real backend) with one canonical shape; derive both views from it.
-2. **`useState` inside an IIFE in `BabysitterCard`.** Lines 98–126 of `BabysitterCard.tsx` use an inline `(() => { const [x, setX] = useState(...); return <>...</>; })()` pattern. This works because the IIFE is called on every render in a stable position, but it's confusing and a lint rule away from breaking. Lift `callOpen` to a top-level hook in the component body.
-3. **Hero search input does nothing.** `HeroSection`'s zip-code input is decorative. Either wire it to the same filter state as `FilterBar`, or remove it to avoid misleading users (and stakeholders watching the demo).
-4. **Two `ScheduleCallSheet` instances per page.** Cards each render their own sheet, and the profile renders one too. Fine at this scale; if you ever lift state to a route-level provider, also lift the sheet to avoid mounting N copies.
-5. **`distanceMiles` is unused on the card** but still in the dataset. Either surface it or drop the field.
-6. **Bookings store status never advances.** Every call is created `Requested` and stays there. The "Past Calls" / "Completed" branch is dead until a real lifecycle is added.
-7. **`__root.tsx` head meta is generic** ("Lovable App"). Each leaf route already overrides title/description; consider stripping the placeholder root og:title to avoid stale social previews if the root ever wins a render.
+1. **`useState` inside an IIFE in `BabysitterCard`.** The card uses an inline `(() => { const [x, setX] = useState(...); return <>...</>; })()` pattern around the schedule-sheet state. This works because the IIFE is called on every render in a stable position, but it's confusing and a lint rule away from breaking. Lift `callOpen` to a top-level hook in the component body.
+2. **Hero search input does nothing.** `HeroSection`'s zip-code input is decorative. Either wire it to the same filter state as `FilterBar`, or remove it to avoid misleading users (and stakeholders watching the demo).
+3. **Two `ScheduleCallSheet` instances per page.** Cards each render their own sheet, and the profile renders one too. Fine at this scale; if you ever lift state to a route-level provider, also lift the sheet to avoid mounting N copies.
+4. **`distance_miles` is unused on the card** but still in the dataset. Either surface it or drop the column.
+5. **`scheduled_calls.status` never advances.** Every call is created `Requested` and stays there. The "Past Calls" / "Completed" branch is dead until a real lifecycle (cron job, provider acceptance UI, or post-call mark-complete) is added.
+6. **Availability is still client-generated.** `generateWeekSlots()` returns the same week for every sitter. Real per-sitter availability needs an `availability_slots` table + RLS for sitter-side writes.
+7. **No reviews write path.** `reviews` is read-only from the client. A post-call "leave a review" flow would need an INSERT policy plus a foreign key to `scheduled_calls`.
+8. **`__root.tsx` head meta is generic.** Each leaf route already overrides title/description; consider tightening the root og:title to avoid stale social previews if the root ever wins a render.
 
 ---
 
 ## 7. Common Tasks
 
-**Add a sitter.** Append to the array in `src/routes/index.tsx` *and* the object in `src/routes/sitters.$sitterName.tsx`. Add a photo to `src/assets/`. Use a unique lowercase name (it becomes the URL slug).
+**Add a sitter.** Run an INSERT against the `sitters` table via Lovable Cloud SQL. Use a unique lowercased name as the `slug` (it becomes the URL). Drop the photo into `public/` and reference it as `/your-photo.jpg` in `photo_url`. The browse and profile routes pick it up on next fetch — no code changes needed.
 
-**Add a new filter.** Extend the `filters` shape in `src/routes/index.tsx`, add a control to `FilterBar.tsx`, and add a predicate in the `useMemo(() => babysitters.filter(...))` block.
+**Add a new filter.** Extend the `filters` shape in `src/routes/index.tsx`, add a control to `FilterBar.tsx`, and add a predicate in the `useMemo(() => sitters.filter(...))` block. If the filter needs a new column, add it to the `sitters` table via migration first.
 
 **Add a new route.** Create `src/routes/<name>.tsx` exporting `Route = createFileRoute("/<name>")({...})`. Add a `<Link to="/<name>">` in `Navbar.tsx`. Don't touch `routeTree.gen.ts`. Always include a `head()` with a unique title/description.
 
-**Persist bookings.** Replace `bookings-store.ts` internals with `localStorage` (quickest), or enable Lovable Cloud and back it with a Postgres table + RLS. The pub/sub interface (`subscribe`, `getSnapshot`, `scheduleCall`) is the boundary — keep it stable so consumers don't change.
+**Wire real availability.** Create an `availability_slots` table (sitter_id, starts_at, duration_min, is_booked). Replace `generateWeekSlots()` with a Supabase query keyed on sitter. Add RLS so sitters can manage their own slots and parents can read public slots.
 
-**Wire real video.** The Meet link is a static string in `scheduleCall()`. Swap for a Calendar API insert (returns a real `hangoutLink`), or generate a Daily/Whereby/Zoom room. The `meetLink` field on `ScheduledCall` is the contract.
+**Wire real video.** The Meet link is a static string in `scheduleCall()`. Swap for a Calendar API insert (returns a real `hangoutLink`), or generate a Daily/Whereby/Zoom room. The `meet_link` field on `scheduled_calls` is the contract.
+
+**Add analytics.** PRD §7 has the event spec. Likely insertion points: `Index` mount (`landing_view`), `BabysitterCard` mount (`sitter_card_impression`), `SitterProfile` mount (`profile_view`), `ScheduleCallSheet` open (`schedule_call_opened`), slot click (`call_slot_selected`), `handleConfirm` (`call_confirmed`), and the decorative "Book" buttons once they're wired (`booking_initiated` with `had_prior_call`).
 
 **Add analytics.** PRD §7 has the event spec. Likely insertion points: `Index` mount (`landing_view`), `BabysitterCard` mount (`sitter_card_impression`), `SitterProfile` mount (`profile_view`), `ScheduleCallSheet` open (`schedule_call_opened`), slot click (`call_slot_selected`), `handleConfirm` (`call_confirmed`), and the existing decorative "Book" buttons once they're wired (`booking_initiated` with `had_prior_call`).
 
