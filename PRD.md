@@ -1,7 +1,7 @@
 # PRD — TinyWatch Video Pre-Screening Experiment
 
 **Status:** Clickable interactive prototype (not production)
-**Owner:** Product
+**Owner:** Product Manager Breanna Fife
 **Stack:** TanStack Start v1 (React 19, Vite 7), Tailwind v4, shadcn/ui — all data mocked in memory
 **Companion docs:** [`README.md`](./README.md)
 
@@ -47,11 +47,11 @@ The platform shows little more than a name and photo, and never prompts for revi
 
 > **If** we enrich provider profiles with the ability to book video calls,
 > **then** the browse-to-book rate will increase **10%** for parents who use the video meet feature,
-> **because** parents need a low-effort way to further screen and connect with sitters before they'll book a stranger to come to their home.
+> **because** parents need a low-effort way to further screen sitters on the platform and connect with sitters before they'll book a stranger to come to their home.
 
 ### Kill switch
 
-Parents won't book providers regardless of trust signals if they can't video call with them first. If the call feature is available and adoption is real but bookings still don't move on zero-review providers, the hypothesis is wrong and we kill it.
+Parents are less likely book providers regardless of trust signals if they can't video call with them first. If the call feature is available and adoption is real but bookings still don't move on zero-review providers, the hypothesis is wrong and we kill it.
 
 ### Validated if
 
