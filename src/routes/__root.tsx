@@ -76,7 +76,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const context = Route.useRouteContext();
+  const queryClient = context?.queryClient;
+  if (!queryClient) {
+    return (
+      <AuthProvider>
+        <Outlet />
+        <Toaster position="top-center" richColors />
+      </AuthProvider>
+    );
+  }
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
