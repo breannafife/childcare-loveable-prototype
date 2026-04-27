@@ -30,6 +30,11 @@ function Index() {
     queryFn: fetchSitters,
   });
 
+  const { data: certifications = [] } = useQuery({
+    queryKey: ["certifications"],
+    queryFn: fetchCertifications,
+  });
+
   const filteredSitters = useMemo(() => {
     return sitters.filter((s) => {
       if (filters.verifiedOnly && !s.is_verified) return false;
