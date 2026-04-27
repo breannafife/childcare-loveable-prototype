@@ -5,7 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { HeroSection } from "@/components/HeroSection";
 import { BabysitterCard } from "@/components/BabysitterCard";
 import { FilterBar } from "@/components/FilterBar";
-import { fetchSitters } from "@/lib/sitters";
+import { fetchSitters, fetchCertifications } from "@/lib/sitters";
 import { useState, useMemo } from "react";
 
 export const Route = createFileRoute("/")({
