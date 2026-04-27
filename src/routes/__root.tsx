@@ -1,13 +1,11 @@
-import { Outlet, Link, createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "sonner";
 
-interface RouterContext {
-  queryClient: QueryClient;
-}
+const queryClient = new QueryClient();
 
 function NotFoundComponent() {
   return (
@@ -33,7 +31,7 @@ function NotFoundComponent() {
   );
 }
 
-export const Route = createRootRouteWithContext<RouterContext>()({
+export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -76,7 +74,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
