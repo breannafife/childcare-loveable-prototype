@@ -14,7 +14,184 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          created_at: string
+          family_name: string
+          id: string
+          rating: number
+          sitter_id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          family_name: string
+          id?: string
+          rating: number
+          sitter_id: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          family_name?: string
+          id?: string
+          rating?: number
+          sitter_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_calls: {
+        Row: {
+          created_at: string
+          date_label: string
+          id: string
+          meet_link: string
+          sitter_id: string
+          sitter_name: string
+          sitter_photo: string
+          slot_label: string
+          status: string
+          time_label: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_label: string
+          id?: string
+          meet_link: string
+          sitter_id: string
+          sitter_name: string
+          sitter_photo: string
+          slot_label: string
+          status?: string
+          time_label: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_label?: string
+          id?: string
+          meet_link?: string
+          sitter_id?: string
+          sitter_name?: string
+          sitter_photo?: string
+          slot_label?: string
+          status?: string
+          time_label?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_calls_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sitters: {
+        Row: {
+          availability: string[]
+          bio: string
+          certifications: string[]
+          created_at: string
+          distance_miles: number
+          experience_tags: string[]
+          hourly_rate: number
+          id: string
+          is_verified: boolean
+          kids_in_area: number
+          name: string
+          photo_url: string
+          postal_code: string
+          rating: number
+          rebooked_by_families: number
+          slug: string
+          updated_at: string
+          years_experience: number
+        }
+        Insert: {
+          availability?: string[]
+          bio?: string
+          certifications?: string[]
+          created_at?: string
+          distance_miles?: number
+          experience_tags?: string[]
+          hourly_rate?: number
+          id?: string
+          is_verified?: boolean
+          kids_in_area?: number
+          name: string
+          photo_url: string
+          postal_code?: string
+          rating?: number
+          rebooked_by_families?: number
+          slug: string
+          updated_at?: string
+          years_experience?: number
+        }
+        Update: {
+          availability?: string[]
+          bio?: string
+          certifications?: string[]
+          created_at?: string
+          distance_miles?: number
+          experience_tags?: string[]
+          hourly_rate?: number
+          id?: string
+          is_verified?: boolean
+          kids_in_area?: number
+          name?: string
+          photo_url?: string
+          postal_code?: string
+          rating?: number
+          rebooked_by_families?: number
+          slug?: string
+          updated_at?: string
+          years_experience?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
