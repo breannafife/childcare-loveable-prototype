@@ -4,6 +4,7 @@ import { Heart, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
+import { useIsSitter } from "@/hooks/use-is-sitter";
 import { setPendingRole } from "@/lib/pending-role";
 
 interface AuthSearch {
@@ -27,6 +28,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/auth" });
   const { user, loading: authLoading } = useAuth();
+  const { isSitter, isLoading: sitterLoading } = useIsSitter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [role, setRole] = useState<"parent" | "sitter">("parent");
   const [email, setEmail] = useState("");
@@ -36,10 +38,13 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate({ to: search.redirect ?? "/", replace: true });
-    }
-  }, [user, authLoading, navigate, search.redirect]);
+    if (authLoading || !user) return;
+    // Wait until we know whether the user is a sitter before redirecting,
+    // so sitter accounts go straight to their dashboard.
+    if (sitterLoading) return;
+    const target = search.redirect ?? (isSitter ? "/sitter" : "/");
+    navigate({ to: target, replace: true });
+  }, [user, authLoading, sitterLoading, isSitter, navigate, search.redirect]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

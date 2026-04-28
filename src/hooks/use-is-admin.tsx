@@ -12,6 +12,9 @@ export function useIsAdmin() {
   const { data: isAdmin = false, isLoading } = useQuery({
     queryKey: ["is-admin", user?.id],
     enabled: !!user,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
+    staleTime: 60_000,
     queryFn: async () => {
       if (!user) return false;
       const { data, error } = await supabase
