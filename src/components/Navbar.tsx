@@ -74,6 +74,12 @@ export function Navbar() {
         <div className="border-t border-border bg-card px-6 py-4 sm:hidden space-y-3">
           <Link to="/" className="block text-sm font-medium text-muted-foreground">Find Sitters</Link>
           <Link to="/bookings" className="block text-sm font-medium text-muted-foreground">My Bookings</Link>
+          {isSitter && (
+            <Link to="/sitter" className="block text-sm font-medium text-primary">My Sitter Profile</Link>
+          )}
+          {isAdmin && (
+            <Link to="/admin" className="block text-sm font-medium text-primary">Admin</Link>
+          )}
           {user ? (
             <button
               onClick={() => signOut()}
