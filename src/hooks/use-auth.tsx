@@ -63,6 +63,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+async function claimSitterRole(accessToken: string) {
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/claim-sitter-role`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("claim-sitter-role failed:", res.status, text);
+    }
+  } catch (e) {
+    console.error("claim-sitter-role error:", e);
+  }
+}
+
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
