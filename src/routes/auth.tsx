@@ -4,6 +4,7 @@ import { Heart, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
+import { setPendingRole } from "@/lib/pending-role";
 
 interface AuthSearch {
   redirect?: string;
@@ -73,6 +74,8 @@ function AuthPage() {
     setError(null);
     setBusy(true);
     try {
+      // Persist the chosen role across the OAuth redirect (Google strips custom data)
+      setPendingRole(mode === "signup" ? role : "parent");
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin + "/auth",
       });
