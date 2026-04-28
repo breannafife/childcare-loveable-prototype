@@ -1,73 +1,68 @@
-# Add sitter accounts (without disrupting current mock data)
+# Fix: sitter role not assigned on Google sign-up
 
-The existing `sitters` rows stay exactly as they are — they remain the source of truth for the public catalog and admin tools. We only **add** the ability for a real person to claim/own a row by signing up with a sitter role.
+## What's actually wrong
 
-## What changes
+`breeandadrian@gmail.com` exists in the database with `role = 'parent'` and no `sitters` row. The sitter dashboard code is working correctly — it's hiding because this user genuinely isn't a sitter according to the database.
 
-### 1. Database
+The root cause: **Google OAuth doesn't carry the Parent/Babysitter toggle** from the `/auth` page. Only the email/password signup path passes `role` into `raw_user_meta_data`, which the `handle_new_user` trigger reads. Google sign-ins always fall through to the default `'parent'`.
 
-- Add `'sitter'` to the `app_role` enum.
-- Add a nullable `user_id uuid` column on `public.sitters`. Existing rows keep `user_id = NULL` (these are the unclaimed mock catalog entries). When a real sitter signs up, a row is either created or linked here.
-- Add a unique constraint so one auth user can own at most one sitter row.
-- Update `sitters` RLS:
-  - Public can still read all rows (unchanged).
-  - Admins can still do everything (unchanged).
-  - **New:** a sitter can `UPDATE` only the row where `sitters.user_id = auth.uid()`.
-  - **New:** a sitter can `INSERT` a row only with `user_id = auth.uid()` (used during signup if they don't claim an existing row).
-- Update `scheduled_calls` RLS so sitters can `SELECT` calls where `sitter_id` belongs to them (read-only access to their incoming requests).
+## Fix in two parts
 
-### 2. Sign-up flow
+### 1. Repair the existing account (one-time data fix)
 
-On `/auth`, the signup form gets a small role toggle: **"I'm a parent"** (default) / **"I'm a sitter"**. The choice is passed via `options.data.role` on `supabase.auth.signUp`.
+Run a migration that:
+- Inserts `('11e543bb-…', 'sitter')` into `user_roles` (keeps the existing 'parent' row or replaces it — recommend replacing so they're not both)
+- Inserts a starter `sitters` row linked to that `user_id`, mirroring what `handle_new_user` would have created
 
-The existing `handle_new_user` trigger is extended to:
-- Always create the `profiles` row (unchanged).
-- Insert into `user_roles` with the chosen role (`'parent'` or `'sitter'`). Defaults to `'parent'` if missing.
-- If `role = 'sitter'`, also create a minimal `sitters` row owned by that user (name = display name, empty bio, defaults for the rest) so they have something to edit.
+### 2. Fix the OAuth signup flow so this stops happening
 
-### 3. Sitter dashboard — new route `/sitter`
+Two changes:
 
-Mirrors the `/admin` pattern: a layout that checks the user has the `sitter` role, with two tabs:
+**a. Persist the chosen role before redirecting to Google.** On the `/auth` page, when the user clicks "Continue with Google", store the selected role (`parent` | `sitter`) in `localStorage` *before* calling `supabase.auth.signInWithOAuth`. Google OAuth strips custom `data` from the request, so we can't pass it through the OAuth call directly.
 
-- **`/sitter`** — Edit my profile. Pre-filled from their `sitters` row. They can edit bio, photo URL, hourly rate, postal code, availability, experience tags, and certifications. Verified status and admin-only fields stay read-only (only admins can flip `is_verified`).
-- **`/sitter/requests`** — Read-only list of `scheduled_calls` where `sitter_id = my sitter row id`. Shows date, status, parent display name, meet link.
+**b. Apply the chosen role after the OAuth callback completes.** In the auth callback handler (or a small effect on `/auth` / root that runs once a session appears), if `localStorage.pendingRole === 'sitter'` and the user currently has only the default `parent` role:
+- Call a new edge function `claim-sitter-role` (security-definer, validates `auth.uid()`) that:
+  - Deletes the `parent` row from `user_roles` for this user
+  - Inserts a `sitter` row
+  - Inserts a starter `sitters` row if none exists for this `user_id`
+- Clear `localStorage.pendingRole`
+- Invalidate the `is-sitter` and `my-sitter` queries so the navbar/dashboard update immediately
 
-### 4. Navbar
+We use an edge function because RLS on `user_roles` only lets admins insert/delete roles — a regular user can't promote themselves from the client. The edge function uses the service role key but verifies the caller's JWT and only ever touches *their own* `user_id`.
 
-The existing `useIsAdmin` hook gets a sibling `useIsSitter`. Navbar shows:
-- "Admin" link if admin (existing).
-- "My Sitter Profile" link if sitter.
-- "My Bookings" stays for everyone (parents use it; sitters/admins just won't have bookings).
+### 3. Minor UX polish
 
-### 5. Mock data preservation
+- On the `/auth` page, show the role toggle above *both* the email form and the Google button (currently it visually reads as belonging only to the email form).
+- After Google sign-in completes as a sitter, redirect to `/sitter` instead of `/`.
 
-- No existing `sitters` rows are touched — they keep `user_id = NULL` and remain visible in the public catalog and the admin tool exactly as today.
-- The home page filter, sitter detail page, and `ScheduleCallSheet` keep working unchanged.
-- Admins can optionally link a mock sitter to a real account later by setting `sitters.user_id` from the admin sitter editor (small additional input field on each row).
+## Technical details
 
-## Out of scope for this step
+**Files to create**
+- `supabase/migrations/<ts>_fix_breeandadrian_sitter.sql` — one-time data repair
+- `supabase/functions/claim-sitter-role/index.ts` — verifies JWT, swaps role, ensures sitters row
+- (optional) `src/lib/pending-role.ts` — tiny helper for the localStorage key
 
-- Sitters approving/declining call requests (currently parents schedule and the call is auto-confirmed). We can add accept/decline as a follow-up.
-- Sitter-uploaded photos (we keep `photo_url` as a text URL field for now; storage bucket is a separate task).
-- Email notifications when a sitter receives a request.
+**Files to edit**
+- `src/routes/auth.tsx` — write `localStorage.pendingRole` before `signInWithOAuth`; ensure the role toggle clearly applies to both signup paths
+- `src/routes/__root.tsx` (or wherever the auth state listener lives) — on `SIGNED_IN` event, if `pendingRole === 'sitter'`, invoke `claim-sitter-role`, then `queryClient.invalidateQueries(['is-sitter'])` and `['my-sitter']`
+- `supabase/config.toml` — register the new edge function (verify_jwt stays at default `true` so the function receives the caller's identity)
 
-## Files touched
+**Edge function logic (sketch)**
+```ts
+// Reads JWT → user.id
+// If pendingRole !== 'sitter' → 400
+// DELETE FROM user_roles WHERE user_id = $uid AND role = 'parent'
+// INSERT INTO user_roles (user_id, role) VALUES ($uid, 'sitter') ON CONFLICT DO NOTHING
+// INSERT INTO sitters (user_id, name, slug, …defaults…) 
+//   SELECT $uid, $display_name, $slug, … 
+//   WHERE NOT EXISTS (SELECT 1 FROM sitters WHERE user_id = $uid)
+```
 
-**New:**
-- `supabase/migrations/<timestamp>_add_sitter_role.sql` — enum value, column, RLS, trigger update.
-- `src/hooks/use-is-sitter.tsx`
-- `src/routes/sitter.tsx` — layout + role guard.
-- `src/routes/sitter.index.tsx` — profile editor.
-- `src/routes/sitter.requests.tsx` — incoming call requests.
+**Why not just update `handle_new_user` to read role from OAuth?**
+Google's OAuth response doesn't include our app's custom field. The trigger fires before the client knows the user is back. The `localStorage` + post-callback claim pattern is the standard workaround.
 
-**Edited:**
-- `src/routes/auth.tsx` — add role toggle on signup.
-- `src/components/Navbar.tsx` — sitter link.
-- `src/routes/admin.index.tsx` — small "linked user_id" field on each row.
-- `src/lib/sitters.ts` — add `user_id` to `SitterRow` type and a `fetchMySitter()` helper.
+## Outcome
 
-## Risks / things to verify after migration
-
-- The Supabase types regenerate so `SitterRow.user_id` is recognized.
-- The updated `handle_new_user` trigger must remain `SECURITY DEFINER` and not break existing parent signups.
-- Confirm no existing UI does `sitters.insert` from a non-admin context that would now be blocked by the tightened insert policy.
+- `breeandadrian@gmail.com` will immediately have the sitter role + a sitters row → dashboard appears.
+- Future Google sign-ups that select "Babysitter" will land on `/sitter` with the correct role assigned.
+- Email/password sitter signups continue working as they do today.
