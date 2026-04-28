@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, Save, BadgeCheck, Star } from "lucide-react";
+import { Loader2, Save, Star } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSitters, type SitterRow } from "@/lib/sitters";
@@ -47,13 +47,11 @@ function SitterRowEditor({ sitter }: { sitter: SitterRow }) {
   const [draft, setDraft] = useState({
     hourly_rate: sitter.hourly_rate,
     postal_code: sitter.postal_code,
-    is_verified: sitter.is_verified,
   });
 
   const dirty =
     draft.hourly_rate !== sitter.hourly_rate ||
-    draft.postal_code !== sitter.postal_code ||
-    draft.is_verified !== sitter.is_verified;
+    draft.postal_code !== sitter.postal_code;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -62,7 +60,6 @@ function SitterRowEditor({ sitter }: { sitter: SitterRow }) {
         .update({
           hourly_rate: draft.hourly_rate,
           postal_code: draft.postal_code,
-          is_verified: draft.is_verified,
         })
         .eq("id", sitter.id);
       if (error) throw error;
@@ -102,19 +99,6 @@ function SitterRowEditor({ sitter }: { sitter: SitterRow }) {
           onChange={(e) => setDraft({ ...draft, hourly_rate: Number(e.target.value) })}
           className="mt-1 w-24 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground"
         />
-      </label>
-
-      <label className="flex cursor-pointer items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={draft.is_verified}
-          onChange={(e) => setDraft({ ...draft, is_verified: e.target.checked })}
-          className="h-4 w-4 accent-primary"
-        />
-        <span className="flex items-center gap-1 text-card-foreground">
-          <BadgeCheck size={14} className="text-trust" />
-          Verified
-        </span>
       </label>
 
       <button

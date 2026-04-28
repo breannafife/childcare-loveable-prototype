@@ -93,13 +93,7 @@ function SitterProfileEditor() {
         <div className="flex-1">
           <p className="font-display text-lg font-semibold text-card-foreground">{draft.name || "Unnamed sitter"}</p>
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            {sitter.is_verified ? (
-              <>
-                <BadgeCheck size={13} className="text-trust" /> Verified
-              </>
-            ) : (
-              <>Awaiting verification by admin</>
-            )}
+            <BadgeCheck size={13} className="text-trust" /> Verified
           </p>
         </div>
       </div>
