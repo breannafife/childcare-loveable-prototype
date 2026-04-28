@@ -1,9 +1,8 @@
-import { ShieldCheck, Award, MapPin, ChevronDown } from "lucide-react";
+import { Award, MapPin, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 interface FilterBarProps {
   filters: {
-    verifiedOnly: boolean;
     certifications: string[];
     postalCode: string;
   };
@@ -14,10 +13,6 @@ interface FilterBarProps {
 export function FilterBar({ filters, onFiltersChange, availableCertifications }: FilterBarProps) {
   const [certDropdownOpen, setCertDropdownOpen] = useState(false);
 
-  const toggleVerified = () => {
-    onFiltersChange({ ...filters, verifiedOnly: !filters.verifiedOnly });
-  };
-
   const toggleCert = (cert: string) => {
     const next = filters.certifications.includes(cert)
       ? filters.certifications.filter((c) => c !== cert)
@@ -26,25 +21,11 @@ export function FilterBar({ filters, onFiltersChange, availableCertifications }:
   };
 
   const activeCount =
-    (filters.verifiedOnly ? 1 : 0) +
     filters.certifications.length +
     (filters.postalCode.length > 0 ? 1 : 0);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Verified toggle */}
-      <button
-        onClick={toggleVerified}
-        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
-          filters.verifiedOnly
-            ? "border-verified bg-verified/10 text-verified"
-            : "border-border bg-card text-muted-foreground hover:border-foreground/20"
-        }`}
-      >
-        <ShieldCheck size={15} />
-        Verified Only
-      </button>
-
       {/* Certifications dropdown */}
       <div className="relative">
         <button
@@ -124,7 +105,6 @@ export function FilterBar({ filters, onFiltersChange, availableCertifications }:
         <button
           onClick={() =>
             onFiltersChange({
-              verifiedOnly: false,
               certifications: [],
               postalCode: "",
             })

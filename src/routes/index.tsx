@@ -20,7 +20,6 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [filters, setFilters] = useState({
-    verifiedOnly: false,
     certifications: [] as string[],
     postalCode: "",
   });
@@ -37,7 +36,6 @@ function Index() {
 
   const filteredSitters = useMemo(() => {
     return sitters.filter((s) => {
-      if (filters.verifiedOnly && !s.is_verified) return false;
       if (filters.certifications.length > 0) {
         const hasCert = filters.certifications.every((c) => s.certifications.includes(c));
         if (!hasCert) return false;
@@ -104,7 +102,7 @@ function Index() {
           <div className="rounded-2xl border border-border bg-card py-16 text-center">
             <p className="text-lg font-medium text-muted-foreground">No sitters match your filters</p>
             <button
-              onClick={() => setFilters({ verifiedOnly: false, certifications: [], postalCode: "" })}
+              onClick={() => setFilters({ certifications: [], postalCode: "" })}
               className="mt-3 text-sm font-medium text-primary hover:underline"
             >
               Clear all filters
