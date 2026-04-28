@@ -1,4 +1,4 @@
-# SitterTrust — Interactive Prototype
+# TinyWatch — Interactive Prototype
 
 A clickable prototype for a peer-to-peer babysitter marketplace, built to test whether **video pre-screening calls** can unblock the browse-to-book funnel for providers with little or no review history.
 
