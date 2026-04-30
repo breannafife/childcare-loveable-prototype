@@ -120,13 +120,30 @@ function SitterProfileEditor() {
         <img
           src={draft.photo_url || "/placeholder.svg"}
           alt={draft.name ?? "Sitter"}
-          className="h-20 w-20 rounded-2xl object-cover"
+          className="h-20 w-20 rounded-2xl object-cover bg-muted"
         />
         <div className="flex-1">
           <p className="font-display text-lg font-semibold text-card-foreground">{draft.name || "Unnamed sitter"}</p>
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
             <BadgeCheck size={13} className="text-trust" /> Verified
           </p>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+          >
+            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+            {uploading ? "Uploading…" : draft.photo_url ? "Change photo" : "Upload photo"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">JPG or PNG, up to 5 MB. Don't forget to Save.</p>
         </div>
       </div>
 
@@ -136,14 +153,6 @@ function SitterProfileEditor() {
             value={draft.name ?? ""}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             className="input"
-          />
-        </Field>
-        <Field label="Photo URL">
-          <input
-            value={draft.photo_url ?? ""}
-            onChange={(e) => setDraft({ ...draft, photo_url: e.target.value })}
-            className="input"
-            placeholder="https://…"
           />
         </Field>
         <Field label="Postal code">
