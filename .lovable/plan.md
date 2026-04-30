@@ -1,26 +1,32 @@
 ## Goal
-Mock all sitters as verified by default and remove the admin verification toggle.
+Make name editable (already works) and replace the brittle "Photo URL" text input on `/sitter` with a real photo upload backed by Lovable Cloud storage.
+
+## Current state
+`src/routes/sitter.index.tsx` already renders editable inputs for `name` and `photo_url` and saves via `supabase.from("sitters").update(draft)` (RLS allows the sitter to update their own row). The pain point is that `photo_url` requires the sitter to paste a hosted image URL — there's no way to upload a photo from their device.
 
 ## Changes
 
-### Database (migration)
-- Change `sitters.is_verified` default to `true`.
-- Update existing rows: `UPDATE public.sitters SET is_verified = true WHERE is_verified = false;`
-- Update `handle_new_user()` so newly created sitter rows insert `is_verified = true`.
+### 1. Create a public storage bucket for sitter photos (migration)
+- Bucket id: `sitter-photos`, public read.
+- RLS on `storage.objects`:
+  - Public SELECT on objects in `sitter-photos`.
+  - Authenticated INSERT/UPDATE/DELETE only when the first path segment equals `auth.uid()::text` (so each sitter can only write under their own folder, e.g. `sitter-photos/{user_id}/avatar-<timestamp>.jpg`).
 
-### Admin UI (`src/routes/admin.index.tsx`)
-- Remove the "Verified" checkbox from the editor.
-- Remove `is_verified` from the draft state, dirty check, and update payload.
+### 2. Update `src/routes/sitter.index.tsx`
+- Keep the Display name input as-is.
+- Replace the Photo URL field with a photo uploader:
+  - Show current photo preview (use `draft.photo_url` or placeholder).
+  - "Upload photo" button → hidden `<input type="file" accept="image/*">`.
+  - On file select: validate type + size (≤ 5 MB), upload to `sitter-photos/{user.id}/avatar-{Date.now()}.{ext}` with `upsert: true`, get the public URL via `supabase.storage.from("sitter-photos").getPublicUrl(path)`, set `draft.photo_url`, and toast success.
+  - Show a small inline spinner while uploading; disable the button during upload.
+  - Keep an optional "Use image URL instead" collapsed advanced field so power users can still paste a URL (small, secondary). If you'd rather drop this, easy to remove.
+- The existing Save button still persists `draft` (including the new `photo_url`) to the `sitters` row — no change to save logic.
 
-### Sitter dashboard (`src/routes/sitter.index.tsx`)
-- Remove the "Awaiting verification" branch — always show the Verified badge (the data will back this up).
+### 3. No other files need changes
+Auth, RLS on `sitters`, and the admin/listing UIs already read `photo_url` as a plain string, so the new uploaded URL works everywhere automatically.
 
-### Filters (`src/components/FilterBar.tsx` + `src/routes/index.tsx`)
-- Keep the filter logic intact (everyone is verified, so it's a no-op), but since "Verified Only" is now meaningless, remove the toggle button from FilterBar and drop `verifiedOnly` from the index filter state and reset.
-
-## Files edited
-- `supabase/migrations/<new>.sql` (new)
-- `src/routes/admin.index.tsx`
-- `src/routes/sitter.index.tsx`
-- `src/components/FilterBar.tsx`
-- `src/routes/index.tsx`
+## Technical notes
+- Bucket is public so `<img src=...>` works directly without signed URLs.
+- Path convention `{user_id}/...` is enforced both by client code and by the storage RLS policy, preventing one sitter from overwriting another's photos.
+- `upsert: true` + timestamped filename keeps history-free behavior while avoiding cache issues.
+- File-size guard is client-side only; that's fine for a mock/MVP.
