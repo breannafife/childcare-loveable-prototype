@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Loader2, Save, BadgeCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Save, BadgeCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMySitter, type SitterRow } from "@/lib/sitters";
@@ -24,6 +24,38 @@ function SitterProfileEditor() {
   });
 
   const [draft, setDraft] = useState<Partial<SitterRow>>({});
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be 5 MB or smaller");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("sitter-photos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("sitter-photos").getPublicUrl(path);
+      setDraft((d) => ({ ...d, photo_url: pub.publicUrl }));
+      toast.success("Photo uploaded — click Save to publish");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   useEffect(() => {
     if (sitter) {
@@ -88,13 +120,30 @@ function SitterProfileEditor() {
         <img
           src={draft.photo_url || "/placeholder.svg"}
           alt={draft.name ?? "Sitter"}
-          className="h-20 w-20 rounded-2xl object-cover"
+          className="h-20 w-20 rounded-2xl object-cover bg-muted"
         />
         <div className="flex-1">
           <p className="font-display text-lg font-semibold text-card-foreground">{draft.name || "Unnamed sitter"}</p>
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
             <BadgeCheck size={13} className="text-trust" /> Verified
           </p>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+          >
+            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+            {uploading ? "Uploading…" : draft.photo_url ? "Change photo" : "Upload photo"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">JPG or PNG, up to 5 MB. Don't forget to Save.</p>
         </div>
       </div>
 
@@ -104,14 +153,6 @@ function SitterProfileEditor() {
             value={draft.name ?? ""}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             className="input"
-          />
-        </Field>
-        <Field label="Photo URL">
-          <input
-            value={draft.photo_url ?? ""}
-            onChange={(e) => setDraft({ ...draft, photo_url: e.target.value })}
-            className="input"
-            placeholder="https://…"
           />
         </Field>
         <Field label="Postal code">
