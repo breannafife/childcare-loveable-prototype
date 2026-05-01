@@ -71,6 +71,42 @@ export type Database = {
           },
         ]
       }
+      google_calendar_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          google_email: string
+          id: string
+          refresh_token: string
+          scope: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          google_email: string
+          id?: string
+          refresh_token: string
+          scope: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          google_email?: string
+          id?: string
+          refresh_token?: string
+          scope?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -148,48 +184,66 @@ export type Database = {
       }
       scheduled_calls: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           date_label: string
           duration_minutes: number
+          google_event_id_parent: string | null
+          google_event_id_sitter: string | null
+          google_meet_link: string | null
           id: string
           meet_link: string
           sitter_id: string
           sitter_name: string
           sitter_photo: string
+          slot_end_at: string | null
           slot_id: string | null
           slot_label: string
+          slot_start_at: string | null
           status: string
           time_label: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           date_label: string
           duration_minutes?: number
+          google_event_id_parent?: string | null
+          google_event_id_sitter?: string | null
+          google_meet_link?: string | null
           id?: string
           meet_link: string
           sitter_id: string
           sitter_name: string
           sitter_photo: string
+          slot_end_at?: string | null
           slot_id?: string | null
           slot_label: string
+          slot_start_at?: string | null
           status?: string
           time_label: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           date_label?: string
           duration_minutes?: number
+          google_event_id_parent?: string | null
+          google_event_id_sitter?: string | null
+          google_meet_link?: string | null
           id?: string
           meet_link?: string
           sitter_id?: string
           sitter_name?: string
           sitter_photo?: string
+          slot_end_at?: string | null
           slot_id?: string | null
           slot_label?: string
+          slot_start_at?: string | null
           status?: string
           time_label?: string
           updated_at?: string
@@ -221,6 +275,7 @@ export type Database = {
       }
       sitter_availability_slots: {
         Row: {
+          bucket: string | null
           created_at: string
           id: string
           is_booked: boolean
@@ -229,6 +284,7 @@ export type Database = {
           slot_start: string
         }
         Insert: {
+          bucket?: string | null
           created_at?: string
           id?: string
           is_booked?: boolean
@@ -237,6 +293,7 @@ export type Database = {
           slot_start: string
         }
         Update: {
+          bucket?: string | null
           created_at?: string
           id?: string
           is_booked?: boolean
