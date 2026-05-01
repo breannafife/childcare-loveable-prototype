@@ -48,8 +48,18 @@ function SitterProfileEditor() {
         .upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("sitter-photos").getPublicUrl(path);
-      setDraft((d) => ({ ...d, photo_url: pub.publicUrl }));
-      toast.success("Photo uploaded — click Save to publish");
+      const newUrl = pub.publicUrl;
+      setDraft((d) => ({ ...d, photo_url: newUrl }));
+      if (sitter) {
+        const { error: dbErr } = await supabase
+          .from("sitters")
+          .update({ photo_url: newUrl })
+          .eq("id", sitter.id);
+        if (dbErr) throw dbErr;
+        qc.invalidateQueries({ queryKey: ["my-sitter"] });
+        qc.invalidateQueries({ queryKey: ["sitters"] });
+      }
+      toast.success("Photo updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -143,7 +153,7 @@ function SitterProfileEditor() {
             className="hidden"
             onChange={handlePhotoUpload}
           />
-          <p className="mt-1 text-[11px] text-muted-foreground">JPG or PNG, up to 5 MB. Don't forget to Save.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">JPG or PNG, up to 5 MB.</p>
         </div>
       </div>
 
