@@ -14,12 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          created_at: string
+          ends_at: string
+          hourly_rate_snapshot: number
+          id: string
+          notes: string | null
+          parent_id: string
+          parent_postal_code: string | null
+          sitter_id: string
+          starts_at: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          hourly_rate_snapshot?: number
+          id?: string
+          notes?: string | null
+          parent_id: string
+          parent_postal_code?: string | null
+          sitter_id: string
+          starts_at: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          hourly_rate_snapshot?: number
+          id?: string
+          notes?: string | null
+          parent_id?: string
+          parent_postal_code?: string | null
+          sitter_id?: string
+          starts_at?: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitter_stats"
+            referencedColumns: ["sitter_id"]
+          },
+          {
+            foreignKeyName: "bookings_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
           id: string
+          phone: string | null
+          postal_code: string | null
           updated_at: string
           user_id: string
         }
@@ -28,6 +87,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          phone?: string | null
+          postal_code?: string | null
           updated_at?: string
           user_id: string
         }
@@ -36,6 +97,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          phone?: string | null
+          postal_code?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -71,6 +134,13 @@ export type Database = {
             foreignKeyName: "reviews_sitter_id_fkey"
             columns: ["sitter_id"]
             isOneToOne: false
+            referencedRelation: "sitter_stats"
+            referencedColumns: ["sitter_id"]
+          },
+          {
+            foreignKeyName: "reviews_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
             referencedRelation: "sitters"
             referencedColumns: ["id"]
           },
@@ -80,11 +150,13 @@ export type Database = {
         Row: {
           created_at: string
           date_label: string
+          duration_minutes: number
           id: string
           meet_link: string
           sitter_id: string
           sitter_name: string
           sitter_photo: string
+          slot_id: string | null
           slot_label: string
           status: string
           time_label: string
@@ -94,11 +166,13 @@ export type Database = {
         Insert: {
           created_at?: string
           date_label: string
+          duration_minutes?: number
           id?: string
           meet_link: string
           sitter_id: string
           sitter_name: string
           sitter_photo: string
+          slot_id?: string | null
           slot_label: string
           status?: string
           time_label: string
@@ -108,11 +182,13 @@ export type Database = {
         Update: {
           created_at?: string
           date_label?: string
+          duration_minutes?: number
           id?: string
           meet_link?: string
           sitter_id?: string
           sitter_name?: string
           sitter_photo?: string
+          slot_id?: string | null
           slot_label?: string
           status?: string
           time_label?: string
@@ -122,6 +198,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "scheduled_calls_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitter_stats"
+            referencedColumns: ["sitter_id"]
+          },
+          {
+            foreignKeyName: "scheduled_calls_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_calls_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "sitter_availability_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sitter_availability_slots: {
+        Row: {
+          created_at: string
+          id: string
+          is_booked: boolean
+          sitter_id: string
+          slot_end: string
+          slot_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_booked?: boolean
+          sitter_id: string
+          slot_end: string
+          slot_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_booked?: boolean
+          sitter_id?: string
+          slot_end?: string
+          slot_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sitter_availability_slots_sitter_id_fkey"
+            columns: ["sitter_id"]
+            isOneToOne: false
+            referencedRelation: "sitter_stats"
+            referencedColumns: ["sitter_id"]
+          },
+          {
+            foreignKeyName: "sitter_availability_slots_sitter_id_fkey"
             columns: ["sitter_id"]
             isOneToOne: false
             referencedRelation: "sitters"
@@ -218,7 +350,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sitter_stats: {
+        Row: {
+          avg_rating: number | null
+          repeat_families: number | null
+          review_count: number | null
+          sitter_id: string | null
+          total_kids_watched: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -228,9 +369,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      kids_in_area: {
+        Args: { _fsa: string; _sitter_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "parent" | "sitter"
+      booking_status: "requested" | "confirmed" | "completed" | "cancelled"
+      call_status: "requested" | "confirmed" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -359,6 +506,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "parent", "sitter"],
+      booking_status: ["requested", "confirmed", "completed", "cancelled"],
+      call_status: ["requested", "confirmed", "completed", "cancelled"],
     },
   },
 } as const

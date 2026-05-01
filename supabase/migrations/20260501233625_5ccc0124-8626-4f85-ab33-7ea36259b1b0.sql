@@ -1,27 +1,13 @@
-## Goal
-
-Add the schema needed to replace the highest-leverage hardcoded UI values:
-real `bookings`, real intro-call `sitter_availability_slots`, and a
-`sitter_stats` view that derives rating / kids-watched / repeat-families
-instead of trusting the manually-maintained columns on `sitters`.
-
-This is **schema only** — the existing UI keeps working off the legacy
-`sitters.rating`, `sitters.kids_in_area`, `sitters.rebooked_by_families`
-columns. We can wire the UI over to the new sources in a follow-up step.
-
-## Migration
-
-```sql
 -- 1. Enums
 create type public.booking_status as enum ('requested', 'confirmed', 'completed', 'cancelled');
 create type public.call_status    as enum ('requested', 'confirmed', 'completed', 'cancelled');
 
--- 2. profiles: add fields needed for FSA-based "kids in your area" + contact
+-- 2. profiles: add fields
 alter table public.profiles
   add column if not exists postal_code text,
   add column if not exists phone       text;
 
--- 3. bookings — actual paid babysitting jobs
+-- 3. bookings
 create table public.bookings (
   id                     uuid primary key default gen_random_uuid(),
   parent_id              uuid not null references auth.users(id) on delete cascade,
@@ -80,7 +66,7 @@ create trigger bookings_updated_at
   before update on public.bookings
   for each row execute function public.update_updated_at_column();
 
--- 4. sitter_availability_slots — real bookable intro-call windows
+-- 4. sitter_availability_slots
 create table public.sitter_availability_slots (
   id          uuid primary key default gen_random_uuid(),
   sitter_id   uuid not null references public.sitters(id) on delete cascade,
@@ -114,12 +100,12 @@ create policy "Admins manage all slots"
   using (public.has_role(auth.uid(), 'admin'))
   with check (public.has_role(auth.uid(), 'admin'));
 
--- 5. scheduled_calls: link to a real slot + duration; keep `status` as text for now
+-- 5. scheduled_calls additions
 alter table public.scheduled_calls
   add column if not exists duration_minutes integer not null default 15,
   add column if not exists slot_id          uuid references public.sitter_availability_slots(id) on delete set null;
 
--- 6. sitter_stats — derived metrics. security_invoker so RLS on base tables applies.
+-- 6. sitter_stats view
 create or replace view public.sitter_stats
   with (security_invoker = on) as
   select
@@ -149,7 +135,7 @@ create or replace view public.sitter_stats
   ) repeat_parents on true
   group by s.id, distinct_parents.total_kids_watched, repeat_parents.repeat_families;
 
--- 7. kids_in_area(sitter_id, fsa) — FSA-scoped count for the homepage card
+-- 7. kids_in_area helper
 create or replace function public.kids_in_area(_sitter_id uuid, _fsa text)
 returns integer
 language sql
@@ -165,27 +151,3 @@ as $$
 $$;
 
 grant execute on function public.kids_in_area(uuid, text) to anon, authenticated;
-```
-
-## Deliberately NOT in this migration
-
-- Converting `scheduled_calls.status` from text → `call_status` enum.
-  Doing it now would break the existing `bookings-store.ts` writes that
-  insert the literal `"Requested"`. I'll convert and update the writer in
-  the same follow-up that wires up real slots.
-- Dropping `sitters.rating`, `sitters.kids_in_area`,
-  `sitters.rebooked_by_families`. Keep them until the UI reads from
-  `sitter_stats` / `kids_in_area(...)`, then drop in a cleanup migration.
-- Any UI changes. Components keep working untouched.
-
-## Files
-
-- One new SQL migration in `supabase/migrations/`. No app code changes
-  this turn.
-
-## After this lands
-
-Next step (separate request): point `BabysitterCard` / sitter profile /
-admin row at `sitter_stats` + `kids_in_area(...)`, and replace
-`generateWeekSlots()` in `bookings-store.ts` with a query against
-`sitter_availability_slots`.
