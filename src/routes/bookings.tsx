@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
+import { GoogleConnectBanner } from "@/components/GoogleConnectBanner";
 import { Video, Calendar, Clock, ExternalLink, ArrowLeft, Loader2 } from "lucide-react";
 import { fetchMyCalls, type ScheduledCall } from "@/lib/bookings-store";
 import { useAuth } from "@/hooks/use-auth";
@@ -52,9 +53,11 @@ function BookingsPage() {
         </Link>
 
         <h1 className="font-display text-3xl font-bold text-foreground">My Bookings</h1>
-        <p className="mt-1 text-muted-foreground">Your scheduled calls and confirmed bookings</p>
+        <p className="mt-1 mb-8 text-muted-foreground">Your scheduled calls and confirmed bookings</p>
 
-        <section className="mt-10">
+        <GoogleConnectBanner audience="parent" />
+
+        <section className="mt-2">
           <h2 className="font-display text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
             <Video size={20} className="text-primary" />
             Upcoming Calls
