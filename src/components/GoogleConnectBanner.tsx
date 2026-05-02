@@ -27,7 +27,8 @@ export function GoogleConnectBanner({ audience = "parent" }: Props) {
   const conn = useQuery({
     queryKey: ["my-google-connection", user?.id],
     enabled: !!user,
-    queryFn: () => getMyGoogleConnectionFn(),
+    queryFn: () =>
+      getMyGoogleConnectionFn({ data: { token: session?.access_token } }),
   });
 
   const disconnectMut = useMutation({
