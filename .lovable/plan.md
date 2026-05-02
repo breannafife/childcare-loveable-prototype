@@ -1,18 +1,31 @@
-## Update Google OAuth credentials
+## Core Prompt Template (Skill) — TinyWatch Prompt Pack
 
-You've created a new **Web application** OAuth client in Google Cloud Console with the correct redirect URIs. Now we need to replace the old Desktop credentials in the backend with the new Web app credentials.
+Create a single markdown artifact, `PROMPT_PACK.md`, in `/mnt/documents/`, pre-filled with TinyWatch-specific content for each of the three sections. This is a documentation deliverable (no code changes).
 
-### Steps
+### Structure
 
-1. Prompt you to enter the two new secrets:
-   - `GOOGLE_CALENDAR_CLIENT_ID` — the new Web application Client ID
-   - `GOOGLE_CALENDAR_CLIENT_SECRET` — the new Web application Client Secret
+**Step 1 — Expand: Product Context Block**
+Universal context block pasted at the top of every prompt. Encodes:
+- Product mission (TinyWatch: trust-first babysitter marketplace, intro-call-before-booking model)
+- Tech anchors (TanStack Start v1, React 19, Tailwind v4, Lovable Cloud / Supabase, RLS-first security)
+- Role model (parent / sitter / admin via `user_roles` + `has_role()`)
+- Non-negotiables (no roles on profiles table, no auth.users FKs, never edit generated Supabase files)
 
-2. Once you save them, the existing Google Calendar OAuth flow (`/api/public/google/oauth/start` and `/api/public/google/oauth/callback`) will automatically pick up the new values — no code changes needed.
+**Step 2 — Behaviour: Knowledge Grounding (RAG) / Business Rules**
+Hard-coded if/then triggers tethering the AI to functional truth:
+- IF feature touches user roles → THEN use `user_roles` + `has_role()` security-definer pattern
+- IF booking flow → THEN intro call (`scheduled_calls`) must precede paid `bookings`
+- IF Google Calendar → THEN OAuth via `/api/public/google/oauth/*` with HMAC-signed state
+- IF server function needs auth → THEN validate token via `sb.auth.getClaims()`, return benign result on miss (don't throw raw Response)
+- IF sitter signup via OAuth → THEN call `claim-sitter-role` edge function post-SIGNED_IN
+- IF new table → THEN enable RLS + write policies in same migration
 
-3. You can then test the "Connect Google Calendar" flow from the sitter dashboard. The redirect should succeed and store the user's tokens.
+**Step 3 — Refine: Design System Reference + Isolated-Change Prompt**
+- Design system: shadcn/ui components in `src/components/ui/*`, Tailwind v4 tokens in `src/styles.css`, semantic color tokens (no raw hex in components)
+- Isolated-change prompt template: scope guard ("only modify X, do not touch Y"), file allowlist, "preserve existing RLS / route structure / auth middleware" clauses
 
-### Notes
+### Output
 
-- If any user previously connected with the old (Desktop) credentials, those stored tokens will no longer work and they'll need to reconnect — which is expected.
-- No database migration or code edits are required for this step.
+One file: `/mnt/documents/PROMPT_PACK.md` — copy-paste-ready prompts in fenced code blocks, with brief commentary between sections explaining when to use each.
+
+No app code changes. No database changes.
