@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMySitter, type SitterRow } from "@/lib/sitters";
 import { useAuth } from "@/hooks/use-auth";
+import { GoogleConnectBanner } from "@/components/GoogleConnectBanner";
 
 export const Route = createFileRoute("/sitter/")({
   component: SitterProfileEditor,
@@ -126,6 +127,7 @@ function SitterProfileEditor() {
 
   return (
     <div className="space-y-6">
+      <GoogleConnectBanner audience="sitter" />
       <div className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5">
         <img
           src={draft.photo_url || "/placeholder.svg"}
