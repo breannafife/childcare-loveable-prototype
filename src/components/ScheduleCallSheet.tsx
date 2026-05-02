@@ -39,7 +39,8 @@ export function ScheduleCallSheet({ open, onClose, sitterId, sitterName, sitterP
   const conn = useQuery({
     queryKey: ["my-google-connection", user?.id],
     enabled: !!user && open,
-    queryFn: () => getMyGoogleConnectionFn(),
+    queryFn: () =>
+      getMyGoogleConnectionFn({ data: { token: session?.access_token } }),
   });
 
   const slotsQuery = useQuery({

@@ -2,8 +2,10 @@
 // Safe to import from components — the build strips the server bodies.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -12,21 +14,47 @@ import {
   revokeToken,
 } from "./google-calendar.server";
 
+// Resolve a userId from a Supabase access token passed in the request body.
+// Returns null when the token is missing/invalid — callers should treat that
+// as "not signed in" and respond gracefully (no thrown Response).
+async function userIdFromToken(token: string | undefined): Promise<string | null> {
+  if (!token) return null;
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
+  try {
+    const sb = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await sb.auth.getClaims(token);
+    if (error || !data?.claims?.sub) return null;
+    return data.claims.sub as string;
+  } catch {
+    return null;
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // Connection status
 // ────────────────────────────────────────────────────────────────────────
 
-export const getMyGoogleConnection = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { userId } = context;
-    const { data, error } = await supabaseAdmin
+export const getMyGoogleConnection = createServerFn({ method: "POST" })
+  .inputValidator((input: { token?: string }) =>
+    z.object({ token: z.string().optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data }) => {
+    const userId = await userIdFromToken(data.token);
+    if (!userId) return { connected: false, email: null as string | null };
+    const { data: row, error } = await supabaseAdmin
       .from("google_calendar_connections")
       .select("google_email, created_at")
       .eq("user_id", userId)
       .maybeSingle();
-    if (error) throw error;
-    return { connected: !!data, email: data?.google_email ?? null };
+    if (error) {
+      console.error("getMyGoogleConnection db error", error);
+      return { connected: false, email: null as string | null };
+    }
+    return { connected: !!row, email: row?.google_email ?? null };
   });
 
 export const getSitterGoogleConnected = createServerFn({ method: "GET" })
